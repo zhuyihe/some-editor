@@ -32,7 +32,6 @@ import TableCell from '@tiptap/extension-table-cell';
 import TableHeader from '@tiptap/extension-table-header';
 import Placeholder from '@tiptap/extension-placeholder';
 import { useEditorStore } from '../../../stores/editor';
-import { debounce } from '../../../utils/editor-utils';
 import EditorFloatingMenu from './EditorFloatingMenu.vue';
 
 export default defineComponent({
@@ -163,18 +162,31 @@ export default defineComponent({
       ],
       editable: props.editable,
       autofocus: props.autofocus,
-      onUpdate: debounce(({ editor: editorInstance }) => {
+      onUpdate: ({ editor: editorInstance }) => {
         const html = editorInstance.getHTML();
+        console.log('编辑器内容更新 [长度]:', html.length); 
+        console.log('内容预览:', html.substring(0, 30));
         
-        // 避免重复更新
+        // 避免不必要的更新
         if (html !== lastContent.value) {
+          // 存储最新内容
           lastContent.value = html;
+          
+          // 更新到父组件 (v-model)
           emit('update:content', html);
+          
+          // 确保内容也更新到store
+          // 使用延迟是为了确保不会和父组件的更新冲突
+          // 父组件会通过v-model先触发更新
+          setTimeout(() => {
+            console.log('同步内容到store [延迟]');
+            editorStore.setContent(html);
+          }, 0);
         }
         
         // 更新光标位置
         updateCursorPosition();
-      }, 300),
+      },
       onSelectionUpdate: () => {
         // 选中内容变化时更新光标位置
         updateCursorPosition();
@@ -207,14 +219,21 @@ export default defineComponent({
     watch(
       () => props.content,
       (newContent) => {
+        console.log('内容props变化检测:', newContent?.substring(0, 30) || '空内容');
         // 只有当新内容与当前内容不同且编辑器存在时才更新
-        if (editor.value && newContent !== lastContent.value) {
+        if (editor.value && newContent) {
+          console.log('设置编辑器内容:', newContent.substring(0, 30));
+          // 直接使用setContent命令而不是延迟
           lastContent.value = newContent;
+          // 使用false作为第二个参数以保持选择状态
           editor.value.commands.setContent(newContent, false);
           // 内容更新后更新光标位置
           setTimeout(updateCursorPosition, 100);
+        } else {
+          console.log('编辑器未初始化或内容为空，无法更新编辑器内容');
         }
-      }
+      },
+      { immediate: true } // 立即执行，确保初始内容也被处理
     );
 
     // 监听传入的可编辑状态变化

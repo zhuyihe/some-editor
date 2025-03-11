@@ -38,7 +38,7 @@
         type="success"
         size="small"
         :loading="editorStore.isSaving"
-        :disabled="!editorStore.content || editorStore.isSaving"
+        :disabled="editorStore.isSaving"
         @click="saveContent"
       >
         <font-awesome-icon icon="file-alt" />

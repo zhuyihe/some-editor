@@ -36,13 +36,43 @@ export default defineComponent({
     // 编辑器就绪处理
     const handleEditorReady = (editorInstance: any) => {
       editor.value = editorInstance;
+      console.log('编辑器实例准备就绪');
+      
+      // 编辑器就绪后，确保内容正确加载
+      if (editorStore.content) {
+        console.log('编辑器就绪，设置内容:', editorStore.content.substring(0, 30));
+        editorContent.value = editorStore.content;
+        
+        // 延迟一下再次设置内容，确保编辑器内部状态完全准备好
+        setTimeout(() => {
+          console.log('再次确认内容设置');
+          if (editorInstance.commands) {
+            editorInstance.commands.setContent(editorStore.content, false);
+          }
+        }, 200);
+      }
     };
 
     // 保存内容
     const saveContent = async () => {
       try {
-        editorStore.setContent(editorContent.value);
+        // 获取编辑器的最新内容，而不是使用可能过时的editorContent变量
+        let contentToSave = editorContent.value;
+        
+        // 如果编辑器实例可用，从编辑器实例获取最新内容
+        if (editor.value && editor.value.getHTML) {
+          contentToSave = editor.value.getHTML();
+          console.log('从编辑器实例获取最新内容:', contentToSave.substring(0, 30));
+          // 保持editorContent同步，确保v-model是最新的
+          editorContent.value = contentToSave;
+        } else {
+          console.log('编辑器实例不可用，使用editorContent变量:', contentToSave.substring(0, 30));
+        }
+        
+        // 设置内容到store，然后保存
+        editorStore.setContent(contentToSave);
         const result = await editorStore.saveContent();
+        
         if (result) {
           ElMessage.success({
             message: '内容已保存',
@@ -50,6 +80,7 @@ export default defineComponent({
           });
         }
       } catch (error) {
+        console.error('保存失败:', error);
         ElMessage.error({
           message: '保存失败，请重试',
           duration: 3000
@@ -59,15 +90,24 @@ export default defineComponent({
     
     // 加载保存的内容
     const loadSavedContent = () => {
+      console.log('开始加载保存的内容');
       const loaded = editorStore.loadContent();
+      console.log('loadContent结果:', loaded, '内容长度:', editorStore.content?.length);
+      
       if (loaded && editorStore.content) {
+        console.log('设置编辑器内容为保存的内容:', editorStore.content.substring(0, 50));
+        // 确保内容已经被更新到store
         editorContent.value = editorStore.content;
+        
+        // 显示加载成功的消息
         if (editorStore.lastSaved) {
-          ElMessage.info({
+          ElMessage.success({
             message: `已加载上次保存的内容（${editorStore.formattedLastSaved}）`,
             duration: 3000
           });
         }
+      } else {
+        console.warn('没有找到保存的内容或加载失败');
       }
     };
     
@@ -94,7 +134,9 @@ export default defineComponent({
     
     // 监听内容变化
     watch(() => editorContent.value, (newContent) => {
+      console.log('内容变更:', newContent);
       if (newContent !== editorStore.content) {
+        console.log('更新store内容');
         editorStore.setContent(newContent);
       }
     });
@@ -116,13 +158,23 @@ export default defineComponent({
 
     // 初始化
     onMounted(() => {
-      // 尝试加载已保存的内容
+      console.log('组件挂载，开始初始化');
+      
+      // 1. 先尝试加载已保存的内容
       loadSavedContent();
       
-      // 初始化自动保存
+      // 2. 设置默认内容（如果没有保存的内容）
+      if (!editorStore.content) {
+        console.log('设置默认内容');
+        editorContent.value = '<h2>欢迎使用电子病历编辑器</h2><p>这是一个基于 Tiptap 的富文本编辑器，支持结构化控件和智能分页功能。</p>';
+      } else {
+        console.log('使用已加载的内容');
+      }
+      
+      // 3. 初始化自动保存
       setupAutoSave();
       
-      // 添加键盘事件监听器
+      // 4. 添加键盘事件监听器
       window.addEventListener('keydown', handleKeyDown);
     });
     
