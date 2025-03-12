@@ -15,11 +15,13 @@ import {
   faTable, faImage, faFileWord, faClone, faSearch,
   faFileAlt, faCog, faMinus, faPlus, faExpand,
   faParagraph, faPlusCircle, faChevronRight, faHeading, 
-  faQuoteLeft
+  faQuoteLeft, faRobot
 } from '@fortawesome/free-solid-svg-icons'
 
 import App from './App.vue'
 import './assets/styles/main.scss'
+// 暂时注释路由导入，后续实现路由功能时再取消注释
+// import router from './router'
 
 // 将导入的图标添加到库中
 library.add(
@@ -28,7 +30,7 @@ library.add(
   faTable, faImage, faFileWord, faClone, faSearch,
   faFileAlt, faCog, faMinus, faPlus, faExpand,
   faParagraph, faPlusCircle, faChevronRight, faHeading,
-  faQuoteLeft
+  faQuoteLeft, faRobot
 )
 
 const app = createApp(App)
@@ -46,5 +48,7 @@ app.component('font-awesome-icon', FontAwesomeIcon)
 
 // 注册Pinia
 app.use(createPinia())
+// 暂时注释路由使用，后续实现路由功能时再取消注释
+// app.use(router)
 
 app.mount('#app')

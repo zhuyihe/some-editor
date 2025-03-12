@@ -25,6 +25,20 @@
 
     <div class="toolbar-divider"></div>
     
+    <!-- 页面设置区 -->
+    <div class="toolbar-section">
+      <el-tooltip content="页面设置" placement="bottom">
+        <button 
+          class="toolbar-button"
+          @click="openPageSettings"
+        >
+          <font-awesome-icon icon="file-alt" />
+        </button>
+      </el-tooltip>
+    </div>
+    
+    <div class="toolbar-divider"></div>
+    
     <!-- 字体设置区 -->
     <div class="toolbar-section">
       <el-select v-model="fontSize" size="small" placeholder="字号" style="width: 80px">
@@ -235,15 +249,22 @@
         </button>
       </el-tooltip>
     </div>
+
+    <!-- 页面设置面板 -->
+    <page-settings-panel ref="pageSettingsPanel" />
   </div>
 </template>
 
 <script lang="ts">
 import { defineComponent, ref } from 'vue';
 import { Editor } from '@tiptap/vue-3';
+import PageSettingsPanel from '../PaperSettings/PageSettingsPanel.vue';
 
 export default defineComponent({
   name: 'EditorToolbar',
+  components: {
+    PageSettingsPanel
+  },
   props: {
     editor: {
       type: Object as () => Editor,
@@ -262,6 +283,16 @@ export default defineComponent({
       { value: '28px', label: '28px' },
       { value: '32px', label: '32px' },
     ];
+    
+    // 页面设置面板引用
+    const pageSettingsPanel = ref<InstanceType<typeof PageSettingsPanel> | null>(null);
+    
+    // 打开页面设置面板
+    const openPageSettings = () => {
+      if (pageSettingsPanel.value) {
+        pageSettingsPanel.value.openPanel();
+      }
+    };
     
     // 设置文本对齐方式
     const setTextAlign = (align: string) => {
@@ -290,9 +321,11 @@ export default defineComponent({
     return {
       fontSize,
       fontSizes,
+      openPageSettings,
       setTextAlign,
       insertTable,
-      insertImage
+      insertImage,
+      pageSettingsPanel
     };
   }
 });

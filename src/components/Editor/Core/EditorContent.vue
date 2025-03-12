@@ -1,27 +1,39 @@
 <template>
   <div class="emr-editor-content-wrapper">
-    <editor-content :editor="editor" class="emr-editor-content" />
-    
-    <!-- 基于光标位置动态显示加号按钮 -->
-    <div class="add-content-button" 
-         @click="showFloatingMenu = !showFloatingMenu" 
-         v-if="editor && cursorVisible"
-         :style="buttonPosition">
-      <font-awesome-icon :icon="['fas', 'plus']" />
-    </div>
-    
-    <!-- 修改浮动菜单为点击触发，菜单位置也基于光标位置 -->
-    <div class="custom-floating-menu" 
-         v-if="showFloatingMenu && editor"
-         :style="menuPosition">
-      <editor-floating-menu :editor="editor" @close-menu="showFloatingMenu = false" />
+    <!-- 编辑器内容区域 - 现在包含加号按钮和浮动菜单 -->
+    <div ref="editorContainerRef" class="editor-container" @click="updateCursorPosition">
+      <editor-content 
+        :editor="editor" 
+        class="emr-editor-content" 
+        :style="paperStyle" 
+      />
+      
+      <!-- 加号按钮 - 显示在当前段落左侧 -->
+      <div
+        v-if="cursorVisible && !isDialogOpen"
+        class="add-content-button"
+        :style="buttonPosition"
+        @click.stop="toggleFloatingMenu"
+      >
+        <font-awesome-icon :icon="['fas', 'plus']" />
+      </div>
+      
+      <!-- 浮动菜单 -->
+      <div
+        v-if="showFloatingMenu && editor"
+        class="custom-floating-menu"
+        :style="menuPosition"
+        @click.stop
+      >
+        <editor-floating-menu :editor="editor" @close-menu="showFloatingMenu = false" />
+      </div>
     </div>
   </div>
 </template>
 
-<script lang="ts">
-import { defineComponent, onBeforeUnmount, watch, ref, computed, onMounted } from 'vue';
-import { useEditor, EditorContent as TiptapEditorContent } from '@tiptap/vue-3';
+<script>
+import { defineComponent, ref, computed, onMounted, onBeforeUnmount, watch, toRefs, inject, useAttrs, nextTick } from 'vue';
+import { Editor, EditorContent } from '@tiptap/vue-3';
 import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
 import TextAlign from '@tiptap/extension-text-align';
@@ -31,244 +43,245 @@ import TableRow from '@tiptap/extension-table-row';
 import TableCell from '@tiptap/extension-table-cell';
 import TableHeader from '@tiptap/extension-table-header';
 import Placeholder from '@tiptap/extension-placeholder';
-import { useEditorStore } from '../../../stores/editor';
+import Link from '@tiptap/extension-link';
+import { usePaperStore } from '../../../stores/paper';
 import EditorFloatingMenu from './EditorFloatingMenu.vue';
 
 export default defineComponent({
   name: 'EMREditorContent',
   components: {
-    EditorContent: TiptapEditorContent,
+    EditorContent,
     EditorFloatingMenu
   },
   props: {
-    content: {
+    modelValue: {
       type: String,
-      default: '',
+      default: ''
     },
-    editable: {
-      type: Boolean,
-      default: true,
+    placeholder: {
+      type: String,
+      default: '请输入内容...'
     },
     autofocus: {
       type: Boolean,
-      default: false,
-    },
+      default: false
+    }
   },
-  emits: ['update:content', 'editor-ready'],
+  emits: ['update:modelValue', 'editor-ready'],
   setup(props, { emit }) {
-    // 获取编辑器状态管理
-    const editorStore = useEditorStore();
+    // Paper Store
+    const paperStore = usePaperStore();
     
-    // 跟踪上次内容，避免重复更新
-    const lastContent = ref(props.content);
+    // 引用props
+    const { modelValue, placeholder, autofocus } = toRefs(props);
     
-    // 控制浮动菜单的显示
-    const showFloatingMenu = ref(false);
+    // 编辑器实例
+    const editor = ref(null);
     
-    // 跟踪光标位置
-    const cursorTop = ref(0);
-    const cursorLeft = ref(0);
+    // 状态变量
     const cursorVisible = ref(false);
+    const showFloatingMenu = ref(false);
+    const cursorPosition = ref({ top: 0, left: 0 });
+    const isDialogOpen = ref(false);
     
-    // 计算加号按钮位置
-    const buttonPosition = computed(() => {
-      return {
-        top: `${cursorTop.value}px`,
-        left: '-40px', // 增加与内容的距离，适应更宽的边距
-      }
+    // 监听对话框打开状态
+    watch(() => paperStore.isSettingsOpen, (newValue) => {
+      isDialogOpen.value = newValue;
     });
     
-    // 计算菜单位置
-    const menuPosition = computed(() => {
+    // 编辑器样式 - 基于纸张设置
+    const paperStyle = computed(() => {
       return {
-        top: `${cursorTop.value - 10}px`, // 上移更多，避免遮挡当前行
-        left: '-290px', // 确保菜单完全显示在加号左侧，适应新位置
-      }
+        width: `${paperStore.effectiveWidth}mm`,
+        minHeight: `${paperStore.effectiveHeight}mm`,
+        backgroundColor: 'white',
+        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1), 0 0 1px rgba(0, 0, 0, 0.2)',
+        margin: '0 auto',
+        boxSizing: 'border-box',
+        border: 'none',
+        position: 'relative',
+        padding: `${paperStore.margins.top}mm ${paperStore.margins.right}mm ${paperStore.margins.bottom}mm ${paperStore.margins.left}mm`
+      };
     });
     
-    // 更新光标位置的函数
-    const updateCursorPosition = () => {
-      if (!editor.value) return;
+    // 编辑器容器引用
+    const editorContainerRef = ref(null);
+    const cursorRef = ref(null);
+    
+    // 获取当前选区所在的块级节点
+    const getCurrentNode = () => {
+      if (!editor.value) return null;
       
-      // 获取选区信息
-      const { view } = editor.value;
-      const { state } = view;
-      const { selection } = state;
-      const { empty, from } = selection;
-      
-      // 如果没有选区，隐藏光标指示器
-      if (empty && from === 0) {
-        cursorVisible.value = false;
-        return;
-      }
-      
-      // 获取当前节点位置，而不是光标位置
       try {
-        // 获取当前选中位置所在的节点DOM元素
-        const posNode = view.domAtPos(from);
-        const currentNode: Element = posNode.node.nodeType === 3 
-          ? posNode.node.parentNode as Element 
-          : posNode.node as Element;
-        // 获取最近的块级父元素（段落、标题等）
-        let blockNode: Element | null = currentNode;
-        while (blockNode && !['P', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'UL', 'OL', 'LI', 'BLOCKQUOTE'].includes(blockNode.nodeName)) {
-          blockNode = blockNode.parentElement;
-        }
-        // 使用当前块级元素的位置，如果找不到就使用当前元素
-        const nodeToUse: Element = blockNode || currentNode;
-        const editorEl = document.querySelector('.emr-editor-content');
+        const { view, state } = editor.value;
+        const { empty, from } = state.selection;
         
-        if (editorEl && nodeToUse) {
-          // 获取节点位置
-          const nodeRect = nodeToUse.getBoundingClientRect();
-          const editorRect = editorEl.getBoundingClientRect();
-          
-          // 使用节点的顶部位置，而不是光标位置
-          cursorTop.value = nodeRect.top - editorRect.top + (nodeRect.height / 2) - 12; // 垂直居中对齐节点
-          cursorLeft.value = 0; // 固定在左侧
-          cursorVisible.value = true;
+        // 如果选区为空，使用当前位置
+        if (empty) {
+          // 查找当前位置所在的块级节点(paragraph, heading等)
+          const resolvedPos = state.doc.resolve(from);
+          const blockPos = resolvedPos.before(1);
+          return view.nodeDOM(blockPos);
         }
+        return null;
       } catch (error) {
-        console.error('Error updating cursor position:', error);
-        cursorVisible.value = false;
+        console.log("获取节点错误:", error);
+        return null;
       }
     };
     
-    // 创建编辑器实例
-    const editor = useEditor({
-      content: props.content,
-      extensions: [
-        StarterKit,
-        Underline,
-        TextAlign.configure({
-          types: ['heading', 'paragraph'],
-          alignments: ['left', 'center', 'right'],
-          defaultAlignment: 'left',
-        }),
-        Image.configure({
-          inline: true,
-          allowBase64: true,
-        }),
-        Table.configure({
-          resizable: true,
-        }),
-        TableRow,
-        TableCell,
-        TableHeader,
-        Placeholder.configure({
-          placeholder: '请输入文档内容...',
-          showOnlyWhenEditable: true,
-        }),
-      ],
-      editable: props.editable,
-      autofocus: props.autofocus,
-      onUpdate: ({ editor: editorInstance }) => {
-        const html = editorInstance.getHTML();
-        console.log('编辑器内容更新 [长度]:', html.length); 
-        console.log('内容预览:', html.substring(0, 30));
-        
-        // 避免不必要的更新
-        if (html !== lastContent.value) {
-          // 存储最新内容
-          lastContent.value = html;
-          
-          // 更新到父组件 (v-model)
-          emit('update:content', html);
-          
-          // 确保内容也更新到store
-          // 使用延迟是为了确保不会和父组件的更新冲突
-          // 父组件会通过v-model先触发更新
-          setTimeout(() => {
-            console.log('同步内容到store [延迟]');
-            editorStore.setContent(html);
-          }, 0);
+    // 按钮位置 - 左侧对齐，不垂直居中
+    const buttonPosition = computed(() => {
+      return {
+        top: `${cursorPosition.value.top}px`,
+        left: `${cursorPosition.value.left}px`,
+        transform: 'none', // 不使用变换，按钮位置精确定位
+      };
+    });
+    
+    // 菜单位置 - 改为显示在加号按钮的左侧，避免覆盖文档内容
+    const menuPosition = computed(() => {
+      return {
+        top: `${cursorPosition.value.top - 10}px`, // 稍微上移一点，保持菜单整体居中
+        left: `${cursorPosition.value.left - 235}px`, // 放置在按钮左侧，为菜单宽度预留足够空间
+      };
+    });
+    
+    // 初始化编辑器
+    const initEditor = () => {
+      editor.value = new Editor({
+        content: modelValue.value,
+        extensions: [
+          StarterKit,
+          Underline,
+          TextAlign.configure({
+            types: ['heading', 'paragraph'],
+            alignments: ['left', 'center', 'right'],
+          }),
+          Image,
+          Table.configure({
+            resizable: true,
+          }),
+          TableRow,
+          TableHeader,
+          TableCell,
+          Placeholder.configure({
+            placeholder: placeholder.value,
+            emptyEditorClass: 'is-editor-empty',
+          }),
+          Link.configure({
+            openOnClick: false,
+          }),
+        ],
+        autofocus: autofocus.value,
+        onUpdate: ({ editor }) => {
+          emit('update:modelValue', editor.getHTML());
+        },
+        onSelectionUpdate: ({ editor }) => {
+          updateCursorPosition();
+        },
+      });
+      
+      // 通知父组件编辑器已准备好
+      emit('editor-ready', editor.value);
+    };
+    
+    // 更新光标位置，基于当前节点而非光标
+    const updateCursorPosition = () => {
+      // 获取编辑器视图的DOM元素
+      const editorDOM = editorContainerRef.value;
+      if (!editorDOM) return;
+      
+      // 获取编辑器容器的边界矩形
+      const editorRect = editorDOM.getBoundingClientRect();
+      
+      // 获取编辑器内容区域，以计算padding
+      const contentElement = editorDOM.querySelector('.emr-editor-content');
+      if (!contentElement) return;
+      
+      const computedStyle = window.getComputedStyle(contentElement);
+      const paddingLeft = parseFloat(computedStyle.paddingLeft);
+      // 调整位置计算，保持适当距离
+      const leftPosition = paddingLeft > 0 ? paddingLeft - 35 : 15; // 与文本保持适当距离
+      
+      // 获取当前节点的DOM元素
+      const currentNode = getCurrentNode();
+      if (!currentNode) {
+        // 如果找不到当前节点，使用备用方法找到第一个段落
+        const firstParagraph = contentElement.querySelector('p, h1, h2, h3, h4, h5, h6');
+        if (firstParagraph) {
+          const paragraphRect = firstParagraph.getBoundingClientRect();
+          cursorPosition.value = {
+            top: paragraphRect.top - editorRect.top + (paragraphRect.height / 2) - 12, // 垂直居中对齐
+            left: leftPosition // 使按钮放在左侧固定位置
+          };
+          cursorVisible.value = true;
         }
-        
-        // 更新光标位置
-        updateCursorPosition();
-      },
-      onSelectionUpdate: () => {
-        // 选中内容变化时更新光标位置
-        updateCursorPosition();
-      },
-      onFocus: () => {
-        editorStore.startEditing();
-        // 获得焦点时更新光标位置
-        updateCursorPosition();
-        // 获得焦点时自动收起菜单
+        return;
+      }
+
+      // 获取节点的边界矩形
+      const nodeRect = currentNode.getBoundingClientRect();
+
+      // 更新光标位置
+      cursorPosition.value = {
+        top: nodeRect.top - editorRect.top + (nodeRect.height / 2) - 12, // 垂直居中对齐，减12是按钮半径
+        left: leftPosition // 使按钮放在左侧固定位置
+      };
+      
+      cursorVisible.value = true;
+    };
+    
+    // 监听内容变化
+    watch(modelValue, (newValue) => {
+      // 避免内容变化时的无限循环
+      if (editor.value && newValue !== editor.value.getHTML()) {
+        editor.value.commands.setContent(newValue, false);
+      }
+    });
+    
+    // 监听点击事件来隐藏浮动菜单
+    const handleClickOutside = (event) => {
+      if (showFloatingMenu.value) {
         showFloatingMenu.value = false;
-      },
-      onBlur: () => {
-        editorStore.stopEditing();
-      },
-    });
-    
-    // 当编辑器准备好时发出事件
-    watch(
-      () => editor.value,
-      (newValue) => {
-        if (newValue) {
-          emit('editor-ready', newValue);
-          // 初始化后更新光标位置
-          setTimeout(updateCursorPosition, 100);
-        }
       }
-    );
-
-    // 监听传入的内容变化
-    watch(
-      () => props.content,
-      (newContent) => {
-        console.log('内容props变化检测:', newContent?.substring(0, 30) || '空内容');
-        // 只有当新内容与当前内容不同且编辑器存在时才更新
-        if (editor.value && newContent) {
-          console.log('设置编辑器内容:', newContent.substring(0, 30));
-          // 直接使用setContent命令而不是延迟
-          lastContent.value = newContent;
-          // 使用false作为第二个参数以保持选择状态
-          editor.value.commands.setContent(newContent, false);
-          // 内容更新后更新光标位置
-          setTimeout(updateCursorPosition, 100);
-        } else {
-          console.log('编辑器未初始化或内容为空，无法更新编辑器内容');
-        }
-      },
-      { immediate: true } // 立即执行，确保初始内容也被处理
-    );
-
-    // 监听传入的可编辑状态变化
-    watch(
-      () => props.editable,
-      (editable) => {
-        if (editor.value) {
-          editor.value.setEditable(editable);
-        }
-      }
-    );
+    };
     
-    // 监听窗口大小变化，更新光标位置
+    // 切换浮动菜单的显示状态
+    const toggleFloatingMenu = () => {
+      showFloatingMenu.value = !showFloatingMenu.value;
+      // 如果打开菜单，确保按钮保持可见状态
+      if (showFloatingMenu.value) {
+        cursorVisible.value = true;
+      }
+    };
+    
+    // 生命周期钩子
     onMounted(() => {
-      window.addEventListener('resize', updateCursorPosition);
-      // 初始设置一个默认位置
-      setTimeout(updateCursorPosition, 500);
+      initEditor();
+      document.addEventListener('click', handleClickOutside);
     });
-
-    // 组件销毁前销毁编辑器实例和事件监听
+    
     onBeforeUnmount(() => {
+      document.removeEventListener('click', handleClickOutside);
       if (editor.value) {
         editor.value.destroy();
       }
-      window.removeEventListener('resize', updateCursorPosition);
     });
-
+    
     return {
       editor,
+      cursorVisible,
       showFloatingMenu,
       buttonPosition,
       menuPosition,
-      cursorVisible
+      updateCursorPosition,
+      paperStyle,
+      editorContainerRef,
+      toggleFloatingMenu,
+      isDialogOpen
     };
-  },
+  }
 });
 </script>
 
@@ -276,50 +289,61 @@ export default defineComponent({
 .emr-editor-content-wrapper {
   position: relative;
   flex: 1;
-  overflow: visible; /* 改为visible，避免创建额外的滚动区域 */
+  overflow: auto; /* 允许内容滚动 */
   height: 100%;
-  width: 100%; /* 确保包装器占据全部可用宽度 */
-  box-sizing: border-box; /* 确保一致的盒模型计算 */
+  width: 100%;
+  box-sizing: border-box;
+  padding: 20px;
+  background-color: #f0f2f5;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  
+  .editor-container {
+    position: relative;
+    width: auto;
+    height: auto;
+  }
   
   .emr-editor-content {
-    height: 100%;
-    padding: 0; /* 移除内容区域padding，避免与纸张padding重叠 */
+    position: relative;
     outline: none;
-    width: 100%; /* 确保编辑器内容区域固定宽度 */
-    position: relative; /* 建立新的定位上下文 */
+    margin: 0 auto;
+    background-color: white;
+    transition: all 0.3s ease;
+    overflow: visible;
     
     /* 基础编辑器内容样式 */
     :deep(.ProseMirror) {
       outline: none;
-      height: 100%;
       min-height: 200px;
       color: #333;
-      font-size: 16px; /* 更改默认字号为16px */
+      font-size: 16px;
       line-height: 1.6;
-      overflow: visible; /* 确保内容不产生自己的滚动条 */
-      width: 100%; /* 确保内容区域占满容器宽度 */
-      box-sizing: border-box; /* 确保padding不会影响宽度计算 */
-      padding: 0;
-      background-color: transparent; /* 确保编辑器背景是透明的 */
-      max-width: 100%; /* 限制最大宽度，防止内容撑开 */
-      overflow-x: hidden; /* 防止水平溢出 */
+      overflow: visible;
+      width: 100%;
+      box-sizing: border-box;
+      background-color: transparent;
+      max-width: 100%;
+      padding-left: 25px; /* 增加左侧内边距，为加号按钮留出更多空间 */
       
       > * {
         margin-left: 0;
         margin-right: 0;
-        width: 100%; /* 确保所有顶级元素宽度100% */
+        width: 100%;
         box-sizing: border-box;
-        max-width: 100%; /* 限制所有元素最大宽度 */
+        max-width: 100%;
       }
       
       p {
         margin: 1em 0;
-        width: 100%; /* 确保段落宽度固定 */
+        width: 100%;
         box-sizing: border-box;
-        transition: background-color 0.2s; /* 平滑背景色变化 */
+        transition: background-color 0.2s;
+        position: relative; /* 添加相对定位，作为加号按钮的参考 */
         
         &:hover {
-          background-color: rgba(245, 247, 250, 0.4); /* 鼠标悬停时突出显示段落 */
+          background-color: rgba(245, 247, 250, 0.4);
         }
       }
       
@@ -327,7 +351,7 @@ export default defineComponent({
       p.is-editor-empty:first-child::before {
         content: attr(data-placeholder);
         float: left;
-        color: #94a3b8; /* 调整占位符颜色，更柔和 */
+        color: #94a3b8;
         pointer-events: none;
         height: 0;
         opacity: 0.8;
@@ -339,8 +363,9 @@ export default defineComponent({
         margin-bottom: 0.5em;
         color: #222;
         font-weight: 500;
-        width: 100%; /* 确保标题宽度固定 */
+        width: 100%;
         box-sizing: border-box;
+        position: relative; /* 添加相对定位，作为加号按钮的参考 */
       }
       
       h1 { font-size: 1.8em; }
@@ -349,7 +374,7 @@ export default defineComponent({
       
       ul, ol {
         padding-left: 1.5em;
-        width: 100%; /* 确保列表宽度固定 */
+        width: 100%;
         box-sizing: border-box;
       }
       
@@ -358,7 +383,7 @@ export default defineComponent({
         padding-left: 1em;
         color: #606266;
         font-style: italic;
-        width: 100%; /* 确保引用宽度固定 */
+        width: 100%;
         box-sizing: border-box;
       }
       
@@ -374,7 +399,7 @@ export default defineComponent({
         border-radius: 4px;
         padding: 0.75em 1em;
         overflow-x: auto;
-        width: 100%; /* 确保代码块宽度固定 */
+        width: 100%;
         box-sizing: border-box;
       }
       
@@ -388,12 +413,12 @@ export default defineComponent({
         border-collapse: collapse;
         width: 100%;
         margin: 1em 0;
-        table-layout: fixed; /* 使表格宽度固定 */
+        table-layout: fixed;
         
         td, th {
           border: 1px solid #dcdfe6;
           padding: 0.5em;
-          word-break: break-word; /* 防止长文本撑开表格 */
+          word-break: break-word;
         }
         
         th {
@@ -427,33 +452,79 @@ export default defineComponent({
     position: absolute;
     width: 24px;
     height: 24px;
-    background-color: #f5f5f5; /* 稍微灰色背景，与纸张形成对比 */
+    background-color: #ffffff;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     cursor: pointer;
-    z-index: 20;
+    z-index: 100;
     transition: all 0.2s ease;
+    border: 1px solid #dcdfe6;
+    opacity: 0.85;
     
     &:hover {
-      background-color: #e6e6e6;
-      transform: scale(1.1); /* 悬停时有轻微放大效果 */
+      background-color: #409eff;
+      transform: scale(1.1);
+      box-shadow: 0 3px 6px rgba(0, 0, 0, 0.2);
+      opacity: 1;
+      
+      svg {
+        color: #ffffff;
+      }
     }
     
     svg {
       font-size: 14px;
-      color: #606266;
+      color: #409eff;
     }
   }
   
   /* 自定义浮动菜单容器 */
   .custom-floating-menu {
     position: absolute;
-    z-index: 30;
+    z-index: 200; /* 提高z-index确保在最顶层 */
     transition: all 0.2s ease;
-    filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.12)); /* 添加轻微阴影效果 */
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+    width: 220px;
+    padding: 0; /* 移除内边距，由内部组件控制 */
+    
+    &::before {
+      content: '';
+      position: absolute;
+      top: 10px; /* 调整位置到中间 */
+      right: -6px; /* 改为指向右侧 */
+      width: 12px;
+      height: 12px;
+      background-color: white;
+      transform: rotate(45deg);
+      box-shadow: 2px -2px 5px rgba(0, 0, 0, 0.04); /* 调整阴影方向 */
+    }
+  }
+}
+
+// 打印样式
+@media print {
+  .emr-editor-content-wrapper {
+    overflow: visible;
+    height: auto;
+    padding: 0;
+    background: none;
+    
+    .emr-editor-content {
+      width: 100% !important;
+      min-height: auto !important;
+      box-shadow: none;
+      margin: 0;
+    }
+    
+    .add-content-button,
+    .custom-floating-menu {
+      display: none !important;
+    }
   }
 }
 </style> 

@@ -1,63 +1,36 @@
 <template>
   <div class="editor-floating-menu">
     <div class="menu-container">
-      <div class="menu-header">
-        <span>插入内容</span>
-        <button class="close-button" @click="$emit('close-menu')">×</button>
+      <div class="menu-header" @click="handleAiAssistantClick">
+        <div class="ai-helper clickable">
+          <font-awesome-icon :icon="['fas', 'robot']" class="ai-icon" />
+          <span>AI 文档助手</span>
+        </div>
       </div>
       
       <div class="menu-section">
-        <div class="menu-item" @click="insertContent('paragraph')">
-          <font-awesome-icon :icon="['fas', 'paragraph']" />
-          <span>段落</span>
-          <span class="shortcut">Ctrl+Alt+0</span>
-        </div>
-        
-        <div class="submenu-item" @mouseenter="activeSubmenu = 'heading'" @mouseleave="activeSubmenu = null">
-          <font-awesome-icon :icon="['fas', 'heading']" />
-          <span>标题</span>
-          <font-awesome-icon :icon="['fas', 'chevron-right']" class="submenu-arrow" />
+        <template v-for="(section, sectionIndex) in menuConfig" :key="sectionIndex">
+          <div class="section-divider"></div>
+          <div class="section-title">{{ section.title }}</div>
           
-          <div class="submenu" v-if="activeSubmenu === 'heading'">
-            <div class="submenu-item-child" @click="insertContent('h1')">
-              <span>标题 1</span>
-              <span class="shortcut">Ctrl+Alt+1</span>
-            </div>
-            <div class="submenu-item-child" @click="insertContent('h2')">
-              <span>标题 2</span>
-              <span class="shortcut">Ctrl+Alt+2</span>
-            </div>
-            <div class="submenu-item-child" @click="insertContent('h3')">
-              <span>标题 3</span>
-              <span class="shortcut">Ctrl+Alt+3</span>
-            </div>
+          <div 
+            v-for="(item, itemIndex) in section.items" 
+            :key="`${sectionIndex}-${itemIndex}`"
+            class="menu-item"
+            @click="insertContent(item.action)"
+          >
+            <font-awesome-icon :icon="item.icon" />
+            <span>{{ item.label }}</span>
+            
+            <font-awesome-icon 
+              v-if="item.hasSubmenu" 
+              :icon="['fas', 'chevron-right']" 
+              class="submenu-arrow" 
+            />
+            
+            <span v-if="item.shortcut" class="shortcut">{{ item.shortcut }}</span>
           </div>
-        </div>
-        
-        <div class="submenu-item" @mouseenter="activeSubmenu = 'list'" @mouseleave="activeSubmenu = null">
-          <font-awesome-icon :icon="['fas', 'list']" />
-          <span>列表</span>
-          <font-awesome-icon :icon="['fas', 'chevron-right']" class="submenu-arrow" />
-          
-          <div class="submenu" v-if="activeSubmenu === 'list'">
-            <div class="submenu-item-child" @click="insertContent('bulletList')">
-              <font-awesome-icon :icon="['fas', 'list']" />
-              <span>无序列表</span>
-              <span class="shortcut">Ctrl+Shift+8</span>
-            </div>
-            <div class="submenu-item-child" @click="insertContent('orderedList')">
-              <font-awesome-icon :icon="['fas', 'list-ol']" />
-              <span>有序列表</span>
-              <span class="shortcut">Ctrl+Shift+9</span>
-            </div>
-          </div>
-        </div>
-        
-        <div class="menu-item" @click="insertContent('blockquote')">
-          <font-awesome-icon :icon="['fas', 'quote-left']" />
-          <span>引用</span>
-          <span class="shortcut">Ctrl+Shift+B</span>
-        </div>
+        </template>
       </div>
     </div>
   </div>
@@ -67,6 +40,19 @@
 import { defineComponent, ref } from 'vue';
 import { Editor } from '@tiptap/vue-3';
 
+interface MenuItem {
+  label: string;
+  icon: string[] | string;
+  action: string;
+  shortcut?: string;
+  hasSubmenu?: boolean;
+}
+
+interface MenuSection {
+  title: string;
+  items: MenuItem[];
+}
+
 export default defineComponent({
   name: 'EditorFloatingMenu',
   props: {
@@ -75,9 +61,79 @@ export default defineComponent({
       required: true
     }
   },
-  emits: ['close-menu'],
-  setup(props) {
+  emits: ['close-menu', 'ai-assistant'],
+  setup(props, { emit }) {
     const activeSubmenu = ref<string | null>(null);
+    
+    const menuConfig = ref<MenuSection[]>([
+      {
+        title: '插入新内容',
+        items: [
+          { 
+            label: '插入段落', 
+            icon: ['fas', 'align-left'], 
+            action: 'paragraph' 
+          },
+          { 
+            label: '插入章节', 
+            icon: ['fas', 'file-alt'], 
+            action: 'section',
+            hasSubmenu: true
+          },
+          { 
+            label: '插入模板', 
+            icon: ['fas', 'file-alt'], 
+            action: 'template',
+            hasSubmenu: true
+          }
+        ]
+      },
+      {
+        title: '切换节点类型',
+        items: [
+          { 
+            label: '标题 1', 
+            icon: ['fas', 'heading'], 
+            action: 'h1',
+            shortcut: 'Ctrl+Alt+1'
+          },
+          { 
+            label: '标题 2', 
+            icon: ['fas', 'heading'], 
+            action: 'h2',
+            shortcut: 'Ctrl+Alt+2'
+          },
+          { 
+            label: '标题 3', 
+            icon: ['fas', 'heading'], 
+            action: 'h3',
+            shortcut: 'Ctrl+Alt+3'
+          },
+          { 
+            label: '无序列表', 
+            icon: ['fas', 'list'], 
+            action: 'bulletList',
+            shortcut: 'Ctrl+Shift+8'
+          },
+          { 
+            label: '有序列表', 
+            icon: ['fas', 'list-ol'], 
+            action: 'orderedList',
+            shortcut: 'Ctrl+Shift+9'
+          },
+          { 
+            label: '引用', 
+            icon: ['fas', 'quote-left'], 
+            action: 'blockquote',
+            shortcut: 'Ctrl+Shift+B'
+          }
+        ]
+      }
+    ]);
+    
+    const handleAiAssistantClick = () => {
+      emit('ai-assistant');
+    };
     
     const insertContent = (type: string) => {
       if (!props.editor) return;
@@ -87,6 +143,13 @@ export default defineComponent({
       switch (type) {
         case 'paragraph':
           props.editor.chain().focus().setParagraph().run();
+          break;
+        case 'section':
+          props.editor.chain().focus().setParagraph().run();
+          props.editor.chain().focus().insertContent('<p>新的章节内容</p>').run();
+          break;
+        case 'template':
+          props.editor.chain().focus().insertContent('<p>模板示例内容</p>').run();
           break;
         case 'h1':
           props.editor.chain().focus().toggleHeading({ level: 1 }).run();
@@ -109,11 +172,16 @@ export default defineComponent({
         default:
           break;
       }
+      
+      props.editor.chain().focus();
+      emit('close-menu');
     };
     
     return {
       insertContent,
-      activeSubmenu
+      activeSubmenu,
+      menuConfig,
+      handleAiAssistantClick
     };
   }
 });
@@ -122,12 +190,11 @@ export default defineComponent({
 <style scoped lang="scss">
 .editor-floating-menu {
   background-color: #ffffff;
-  border-radius: 4px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
   overflow: visible;
-  width: 200px;
+  width: 220px;
   user-select: none;
-  margin-left: 10px;
   
   .menu-container {
     display: flex;
@@ -136,42 +203,62 @@ export default defineComponent({
   
   .menu-header {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 10px 12px;
-    border-bottom: 1px solid #ebeef5;
+    flex-direction: column;
+    padding: 12px 16px 8px;
+    border-bottom: none;
     
-    span {
-      font-size: 14px;
-      font-weight: 500;
-      color: #303133;
-    }
-    
-    .close-button {
-      border: none;
-      background: none;
-      font-size: 18px;
-      color: #909399;
-      cursor: pointer;
-      width: 20px;
-      height: 20px;
-      padding: 0;
+    .ai-helper {
       display: flex;
       align-items: center;
-      justify-content: center;
+      margin-bottom: 8px;
       
-      &:hover {
-        color: #606266;
+      &.clickable {
+        cursor: pointer;
+        transition: all 0.2s;
+        padding: 4px 8px;
+        border-radius: 4px;
+        margin: -4px -8px;
+        
+        &:hover {
+          background-color: #e6f7ff;
+        }
+      }
+      
+      .ai-icon {
+        color: #1890ff;
+        font-size: 16px;
+        margin-right: 8px;
+      }
+      
+      span {
+        font-size: 13px;
+        font-weight: 500;
+        color: #1890ff;
       }
     }
   }
   
+  .section-divider {
+    height: 1px;
+    background-color: #ebeef5;
+    margin: 0;
+  }
+  
+  .section-title {
+    padding: 12px 16px 4px;
+    font-size: 12px;
+    font-weight: 500;
+    color: #909399;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  
   .menu-section {
-    padding: 5px 0;
+    padding: 8px 0;
   }
   
   .menu-item {
-    padding: 8px 12px;
+    padding: 10px 16px;
     display: flex;
     align-items: center;
     cursor: pointer;
@@ -182,9 +269,16 @@ export default defineComponent({
     }
     
     svg {
-      margin-right: 8px;
+      margin-right: 10px;
       width: 16px;
       color: #606266;
+      
+      &.submenu-arrow {
+        margin-right: 0;
+        margin-left: 8px;
+        width: 12px;
+        color: #909399;
+      }
     }
     
     span {

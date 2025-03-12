@@ -114,6 +114,156 @@ src/
     └── PrintView.vue              # 打印页面
 ```
 
+### 1.7 智能内容编辑交互
+
+#### 1.7.1 加号按钮设计
+
+加号按钮（Add Content Button）作为编辑器的核心交互元素，提供了主要的内容插入入口：
+
+1. **定位策略**:
+   - 按钮出现在当前光标所在文本块的左侧
+   - 采用精确定位算法，确保按钮与文本块顶部垂直对齐
+   - 考虑纸张左侧边距，确保按钮位置一致
+
+2. **交互设计**:
+   - 当鼠标悬停时，按钮呈现轻微放大和颜色变化效果，提供视觉反馈
+   - 点击按钮显示浮动菜单，点击页面其他区域关闭菜单
+   - 有状态交互：按钮在菜单打开时保持可见
+
+3. **样式设计**:
+   - 简约圆形设计，采用低调的默认样式（轻灰色边框、白色背景）
+   - 适度的阴影效果，增强层次感但不过分夺目
+   - 鼠标悬停状态转为品牌色（蓝色），增强可点击感知
+
+4. **技术实现**:
+   ```javascript
+   // 定位算法核心
+   const updateCursorPosition = () => {
+     // 获取当前块级节点
+     const node = getCurrentNode();
+     if (!node) {
+       cursorVisible.value = false;
+       return;
+     }
+     
+     // 计算节点位置
+     const rect = node.getBoundingClientRect();
+     const containerRect = editorContainerRef.value.getBoundingClientRect();
+     
+     // 获取左侧边距
+     const contentElement = document.querySelector('.emr-editor-content');
+     const computedStyle = window.getComputedStyle(contentElement);
+     const leftPadding = parseInt(computedStyle.paddingLeft) || 0;
+     
+     // 设置按钮位置 - 与节点顶部对齐，考虑边距
+     cursorPosition.value.top = rect.top - containerRect.top + 5;
+     cursorPosition.value.left = rect.left - containerRect.left - 30 + leftPadding;
+     
+     cursorVisible.value = true;
+   };
+   ```
+
+#### 1.7.2 浮动菜单系统
+
+浮动菜单提供了丰富的内容插入和格式转换功能，是编辑器智能交互的核心部分：
+
+1. **菜单架构**:
+   - 采用数据驱动的菜单配置系统，支持灵活的菜单项组织
+   - 分层设计：顶部AI助手区域、内容插入区域、节点类型转换区域
+   - 完善的TypeScript接口定义，确保类型安全
+
+   ```typescript
+   interface MenuItem {
+     label: string;           // 菜单项标签
+     icon: string[] | string; // 菜单图标
+     action: string;          // 操作标识符
+     shortcut?: string;       // 快捷键提示
+     hasSubmenu?: boolean;    // 是否有子菜单
+   }
+
+   interface MenuSection {
+     title: string;           // 区域标题
+     items: MenuItem[];       // 菜单项列表
+   }
+   ```
+
+2. **菜单配置示例**:
+   ```javascript
+   const menuConfig = [
+     {
+       title: '插入新内容',
+       items: [
+         { label: '插入段落', icon: ['fas', 'align-left'], action: 'paragraph' },
+         { label: '插入章节', icon: ['fas', 'file-alt'], action: 'section', hasSubmenu: true },
+         { label: '插入模板', icon: ['fas', 'file-alt'], action: 'template', hasSubmenu: true }
+       ]
+     },
+     {
+       title: '切换节点类型',
+       items: [
+         { label: '标题 1', icon: ['fas', 'heading'], action: 'h1', shortcut: 'Ctrl+Alt+1' },
+         { label: '标题 2', icon: ['fas', 'heading'], action: 'h2', shortcut: 'Ctrl+Alt+2' }
+         // ... 更多菜单项
+       ]
+     }
+   ];
+   ```
+
+3. **视觉设计**:
+   - 清晰的视觉层次：区域标题使用小型大写文本，项目使用标准字体
+   - 一致的内边距与对齐，确保整体视觉协调
+   - 悬停状态提供明确的视觉反馈
+   - 包含菜单箭头指示器，指向触发按钮，增强方向感知
+
+4. **交互逻辑**:
+   - 基于上下文的菜单项控制，支持根据编辑器状态显示/隐藏特定选项
+   - 支持快捷键提示，增强高级用户体验
+   - AI助手区域支持点击触发，提供智能编辑辅助功能
+   - 菜单项点击后自动关闭菜单，保持流畅的编辑体验
+
+5. **内容插入实现**:
+   ```javascript
+   const insertContent = (type) => {
+     // 根据不同类型执行相应插入操作
+     switch (type) {
+       case 'paragraph':
+         editor.chain().focus().setParagraph().run();
+         break;
+       case 'section':
+         editor.chain().focus().setParagraph().run();
+         editor.chain().focus().insertContent('<p>新的章节内容</p>').run();
+         break;
+       // ... 更多内容类型处理
+     }
+     
+     // 执行后关闭菜单，保持流畅体验
+     emit('close-menu');
+   };
+   ```
+
+#### 1.7.3 扩展性设计
+
+智能内容交互系统设计了良好的扩展架构，支持后续功能迭代：
+
+1. **菜单配置外部化**:
+   - 支持将菜单配置移至独立文件，便于管理和扩展
+   - 可扩展为支持动态加载菜单配置，实现插件化菜单系统
+
+2. **子菜单扩展**:
+   - 现有架构支持添加多级子菜单，可用于章节模板、结构化控件等
+   - 保留了子菜单状态管理系统，确保多级菜单交互流畅
+
+3. **AI助手集成**:
+   - 保留AI助手专用区域，设计为可扩展式入口
+   - 点击触发事件支持进一步对接智能助手系统
+   - 可扩展为上下文感知的智能提示系统
+
+4. **自定义操作框架**:
+   - 菜单操作采用类型驱动设计，便于添加自定义操作类型
+   - 支持后续集成控件系统，实现结构化内容的插入
+
+这套智能内容编辑交互系统为编辑器提供了直观、高效的内容管理方式，同时保持了良好的可扩展性，为后续功能迭代奠定了基础。
+
 ## 2. 结构化控件设计
 
 ### 2.1 控件公共接口
@@ -121,12 +271,14 @@ src/
 ```typescript
 interface ControlProps {
   id: string;              // 控件唯一标识
+  type: string;            // 控件类型
   label?: string;          // 控件标签文本
   value: any;              // 控件值
   options?: Array<any>;    // 选项列表(适用于选择类控件)
   placeholder?: string;    // 占位文本
   required?: boolean;      // 是否必填
   disabled?: boolean;      // 是否禁用
+  removable: boolean;      // 是否可删除
   validators?: Array<Function>; // 验证函数列表
   onChange: Function;      // 值变更回调
 }
@@ -166,40 +318,105 @@ interface ControlEvents {
    - 支持日期范围选择
    - 支持日期格式自定义
 
-### 2.3 Tiptap集成方案
+### 2.3 控件视觉呈现
+
+控件在编辑器中的视觉呈现采用清晰明确的设计：
+
+1. **边框与区分**:
+   - 控件始终显示边框，使用轻微但可见的边框（如浅灰色1px实线）与普通文本明确区分
+   - 使用浅色背景（如淡蓝色或浅灰色）进一步强化视觉区分
+   - 不同类型的控件可以有轻微的视觉差异，提高可识别性
+
+2. **状态反馈**:
+   - 悬停时边框颜色加深或背景色变化，提供交互反馈
+   - 选中状态使用更明显的边框（如蓝色2px实线）
+   - 错误状态使用红色边框进行提示
+   - 必填控件在标签后显示星号标识
+
+3. **视觉层次**:
+   - 控件整体采用内联式设计，作为文档流的一部分
+   - 控件标签与控件内容清晰区分
+   - 控件整体视觉重量适中，不喧宾夺主
+
+示例视觉呈现:
+```
++-------------------------------------------+
+| 标签: [控件内容区域]                      |
++-------------------------------------------+
+```
+
+### 2.4 控件交互方式
+
+控件采用与编辑器一致的交互模式：
+
+1. **基于光标的交互**:
+   - 通过浮动菜单或工具栏命令在光标位置插入控件
+   - 将光标放置在控件上会自动选中整个控件
+   - 单击进入控件，可直接编辑内容（如在下拉框中选择选项）
+
+2. **键盘操作**:
+   - 选中控件后按Delete或Backspace键删除（对于可删除控件）
+   - 不可删除的控件会在按删除键时显示提示
+   - Tab键可在控件之间和控件内容区域间导航
+   - 方向键可在控件内部移动（如单选项间移动）
+
+3. **数据操作**:
+   - 控件值变更自动触发文档更新
+   - 支持数据的实时验证和即时反馈
+   - 控件数据作为文档结构的一部分进行保存和加载
+
+### 2.5 Tiptap集成方案
 
 ```javascript
 // 控件节点基类
-const StructuredControlNode = Node.create({
-  name: 'structuredControl',
+const ControlNode = Node.create({
+  name: 'control',
   group: 'block',
   atom: true,  // 作为不可分割的整体
   
   addAttributes() {
     return {
-      controlType: { default: null },
-      controlId: { default: null },
-      controlData: { default: {} }
+      id: { default: null },
+      type: { default: null },
+      label: { default: null },
+      value: { default: null },
+      options: { default: null },
+      placeholder: { default: null },
+      required: { default: false },
+      disabled: { default: false },
+      removable: { default: true }
     }
   },
   
   parseHTML() {
-    return [
-      {
-        tag: 'div[data-control-type]',
-      }
-    ]
+    return [{ tag: 'div[data-control]' }]
   },
   
   renderHTML({ HTMLAttributes }) {
-    return ['div', mergeAttributes(
-      { 'data-control-type': HTMLAttributes.controlType },
-      HTMLAttributes
-    ), 0]
+    return ['div', { 'data-control': '', ...HTMLAttributes }, 0]
   },
   
   addNodeView() {
-    return ReactiveNodeViewRenderer(ControlRenderer)
+    return VueNodeViewRenderer(ControlComponent)
+  },
+  
+  addKeyboardShortcuts() {
+    return {
+      'Backspace': ({ editor }) => {
+        const { selection } = editor.state
+        const { node } = selection
+        
+        // 检查是否选中了控件节点并处理删除逻辑
+        if (node && node.type.name === 'control' && !node.attrs.removable) {
+          return true // 阻止默认行为
+        }
+        return false // 允许默认删除行为
+      },
+      'Delete': ({ editor }) => {
+        // 同上...
+        return false
+      }
+    }
   }
 })
 ```
@@ -484,6 +701,516 @@ interface PageSettings {
 }
 ```
 
+### 6.6 纸张系统架构
+
+```
++----------------------------------------------+
+|                纸张系统                       |
+|  +----------------+  +--------------------+  |
+|  |  纸张尺寸管理   |  |    页面设置控制     |  |
+|  +----------------+  +--------------------+  |
+|  +----------------+  +--------------------+  |
+|  |  自定义纸张支持  |  |    页眉页脚编辑    |  |
+|  +----------------+  +--------------------+  |
+|  +----------------+  +--------------------+  |
+|  |   打印样式管理   |  |     导出服务      |  |
+|  +----------------+  +--------------------+  |
++----------------------------------------------+
+```
+
+### 6.7 纸张状态管理
+
+```typescript
+// 纸张状态管理 (使用Pinia)
+export interface PaperState {
+  currentPaperSize: PaperSize;
+  orientation: 'portrait' | 'landscape';
+  margins: {
+    top: number;
+    right: number;
+    bottom: number;
+    left: number;
+  };
+  headerSettings: {
+    enabled: boolean;
+    height: number;
+    content: string;
+    showOnFirstPage: boolean;
+  };
+  footerSettings: {
+    enabled: boolean;
+    height: number;
+    content: string;
+    showOnFirstPage: boolean;
+  };
+  customPaperSizes: Record<string, PaperSize>;
+}
+
+export const usePaperStore = defineStore('paper', {
+  state: (): PaperState => ({
+    currentPaperSize: PAPER_SIZES.A4,
+    orientation: 'portrait',
+    margins: {
+      top: 25,
+      right: 20,
+      bottom: 25,
+      left: 20
+    },
+    headerSettings: {
+      enabled: false,
+      height: 15,
+      content: '',
+      showOnFirstPage: true
+    },
+    footerSettings: {
+      enabled: true,
+      height: 15,
+      content: '<div style="text-align: center">第 {{pageNumber}} 页 / 共 {{pageCount}} 页</div>',
+      showOnFirstPage: true
+    },
+    customPaperSizes: {}
+  }),
+  
+  getters: {
+    // 计算有效宽度（考虑当前方向）
+    effectiveWidth(): number {
+      return this.orientation === 'portrait' 
+        ? this.currentPaperSize.width 
+        : this.currentPaperSize.height;
+    },
+    
+    // 计算有效高度（考虑当前方向）
+    effectiveHeight(): number {
+      return this.orientation === 'portrait' 
+        ? this.currentPaperSize.height 
+        : this.currentPaperSize.width;
+    },
+    
+    // 计算内容区域尺寸
+    contentDimensions(): { width: number; height: number } {
+      let totalHeight = this.effectiveHeight;
+      
+      // 减去上下边距
+      totalHeight -= (this.margins.top + this.margins.bottom);
+      
+      // 如果启用了页眉，减去页眉高度
+      if (this.headerSettings.enabled) {
+        totalHeight -= this.headerSettings.height;
+      }
+      
+      // 如果启用了页脚，减去页脚高度
+      if (this.footerSettings.enabled) {
+        totalHeight -= this.footerSettings.height;
+      }
+      
+      return {
+        width: this.effectiveWidth - this.margins.left - this.margins.right,
+        height: totalHeight
+      };
+    },
+    
+    // 获取所有可用纸张尺寸
+    availablePaperSizes(): Record<string, PaperSize> {
+      return { ...PAPER_SIZES, ...this.customPaperSizes };
+    }
+  },
+  
+  actions: {
+    // 设置纸张尺寸
+    setPaperSize(paperSizeKey: string) {
+      const paperSize = this.availablePaperSizes[paperSizeKey];
+      if (paperSize) {
+        this.currentPaperSize = paperSize;
+      }
+    },
+    
+    // 切换页面方向
+    toggleOrientation() {
+      this.orientation = this.orientation === 'portrait' ? 'landscape' : 'portrait';
+    },
+    
+    // 设置方向
+    setOrientation(orientation: 'portrait' | 'landscape') {
+      this.orientation = orientation;
+    },
+    
+    // 设置页边距
+    setMargins(margins: Partial<PaperState['margins']>) {
+      this.margins = { ...this.margins, ...margins };
+    },
+    
+    // 添加自定义纸张尺寸
+    addCustomPaperSize(paperSize: PaperSize) {
+      const safeName = paperSize.name.trim() || `自定义 ${Object.keys(this.customPaperSizes).length + 1}`;
+      this.customPaperSizes[safeName] = { ...paperSize, name: safeName };
+    },
+    
+    // 删除自定义纸张尺寸
+    removeCustomPaperSize(name: string) {
+      if (this.customPaperSizes[name]) {
+        const newCustomSizes = { ...this.customPaperSizes };
+        delete newCustomSizes[name];
+        this.customPaperSizes = newCustomSizes;
+      }
+    },
+    
+    // 更新页眉设置
+    updateHeaderSettings(settings: Partial<PaperState['headerSettings']>) {
+      this.headerSettings = { ...this.headerSettings, ...settings };
+    },
+    
+    // 更新页脚设置
+    updateFooterSettings(settings: Partial<PaperState['footerSettings']>) {
+      this.footerSettings = { ...this.footerSettings, ...settings };
+    }
+  }
+});
+```
+
+### 6.8 纸张尺寸管理组件设计
+
+```vue
+<!-- PaperSizeSelector.vue -->
+<template>
+  <div class="paper-size-selector">
+    <h3>纸张尺寸</h3>
+    
+    <div class="paper-size-list">
+      <div 
+        v-for="(size, key) in availablePaperSizes" 
+        :key="key"
+        class="paper-size-item"
+        :class="{ active: currentPaperSize.name === size.name }"
+        @click="setPaperSize(key)"
+      >
+        <div class="paper-preview" :style="getPaperPreviewStyle(size)"></div>
+        <div class="paper-info">
+          <span class="paper-name">{{ size.name }}</span>
+          <span class="paper-dimensions">{{ size.width }} × {{ size.height }} mm</span>
+        </div>
+      </div>
+    </div>
+    
+    <button class="add-custom-button" @click="showCustomPaperDialog = true">
+      <i class="el-icon-plus"></i>
+      添加自定义尺寸
+    </button>
+    
+    <!-- 自定义纸张对话框 -->
+    <el-dialog
+      v-model="showCustomPaperDialog"
+      title="自定义纸张尺寸"
+      width="400px"
+    >
+      <div class="custom-paper-form">
+        <div class="form-group">
+          <label>名称:</label>
+          <el-input v-model="customPaper.name" placeholder="例如：名片尺寸" />
+        </div>
+        <div class="form-group">
+          <label>宽度 (mm):</label>
+          <el-input-number v-model="customPaper.width" :min="50" :max="1000" />
+        </div>
+        <div class="form-group">
+          <label>高度 (mm):</label>
+          <el-input-number v-model="customPaper.height" :min="50" :max="1000" />
+        </div>
+      </div>
+      <template #footer>
+        <el-button @click="showCustomPaperDialog = false">取消</el-button>
+        <el-button type="primary" @click="addCustomPaper">添加</el-button>
+      </template>
+    </el-dialog>
+  </div>
+</template>
+```
+
+### 6.9 页面方向选择组件设计
+
+```vue
+<!-- OrientationSelector.vue -->
+<template>
+  <div class="orientation-selector">
+    <h3>页面方向</h3>
+    
+    <div class="orientation-options">
+      <div 
+        class="orientation-option" 
+        :class="{ active: orientation === 'portrait' }"
+        @click="setOrientation('portrait')"
+      >
+        <div class="orientation-preview portrait">
+          <div class="page-content"></div>
+        </div>
+        <span>纵向</span>
+      </div>
+      
+      <div 
+        class="orientation-option" 
+        :class="{ active: orientation === 'landscape' }"
+        @click="setOrientation('landscape')"
+      >
+        <div class="orientation-preview landscape">
+          <div class="page-content"></div>
+        </div>
+        <span>横向</span>
+      </div>
+    </div>
+  </div>
+</template>
+```
+
+### 6.10 页边距设置组件设计
+
+```vue
+<!-- MarginsEditor.vue -->
+<template>
+  <div class="margins-editor">
+    <h3>页边距 (mm)</h3>
+    
+    <div class="margins-form">
+      <div class="margin-group">
+        <label>上边距:</label>
+        <el-input-number 
+          v-model="margins.top" 
+          :min="5" 
+          :max="50"
+          @change="updateMargins"
+        />
+      </div>
+      <div class="margin-group">
+        <label>右边距:</label>
+        <el-input-number 
+          v-model="margins.right" 
+          :min="5" 
+          :max="50"
+          @change="updateMargins"
+        />
+      </div>
+      <div class="margin-group">
+        <label>下边距:</label>
+        <el-input-number 
+          v-model="margins.bottom" 
+          :min="5" 
+          :max="50"
+          @change="updateMargins"
+        />
+      </div>
+      <div class="margin-group">
+        <label>左边距:</label>
+        <el-input-number 
+          v-model="margins.left" 
+          :min="5" 
+          :max="50"
+          @change="updateMargins"
+        />
+      </div>
+    </div>
+    
+    <div class="margins-presets">
+      <el-button size="small" @click="applyPreset('normal')">标准</el-button>
+      <el-button size="small" @click="applyPreset('narrow')">窄边距</el-button>
+      <el-button size="small" @click="applyPreset('wide')">宽边距</el-button>
+    </div>
+  </div>
+</template>
+```
+
+### 6.11 页面预览组件设计
+
+```vue
+<!-- PagePreview.vue -->
+<template>
+  <div class="page-preview-container">
+    <h3>预览</h3>
+    
+    <div class="page-preview" :style="pagePreviewStyle">
+      <!-- 页眉区域 -->
+      <div 
+        v-if="headerSettings.enabled" 
+        class="header-area"
+        :style="headerAreaStyle"
+      ></div>
+      
+      <!-- 内容区域 -->
+      <div class="content-area" :style="contentAreaStyle"></div>
+      
+      <!-- 页脚区域 -->
+      <div 
+        v-if="footerSettings.enabled" 
+        class="footer-area"
+        :style="footerAreaStyle"
+      ></div>
+      
+      <!-- 页边距指示线 -->
+      <div class="margin-guides">
+        <div class="margin-guide top" :style="topMarginGuideStyle"></div>
+        <div class="margin-guide right" :style="rightMarginGuideStyle"></div>
+        <div class="margin-guide bottom" :style="bottomMarginGuideStyle"></div>
+        <div class="margin-guide left" :style="leftMarginGuideStyle"></div>
+      </div>
+    </div>
+  </div>
+</template>
+```
+
+### 6.12 纸张系统与编辑器集成
+
+```typescript
+// 将纸张系统集成到编辑器组件
+export default defineComponent({
+  name: 'EditorContent',
+  // ...
+  setup(props, { emit }) {
+    // ...
+    const paperStore = usePaperStore();
+    
+    // 响应式地计算纸张容器样式
+    const paperContainerStyle = computed(() => {
+      return {
+        width: `${paperStore.effectiveWidth}mm`,
+        minHeight: `${paperStore.effectiveHeight}mm`,
+        paddingTop: paperStore.headerSettings.enabled 
+          ? `${paperStore.headerSettings.height + paperStore.margins.top}mm` 
+          : `${paperStore.margins.top}mm`,
+        paddingRight: `${paperStore.margins.right}mm`,
+        paddingBottom: paperStore.footerSettings.enabled 
+          ? `${paperStore.footerSettings.height + paperStore.margins.bottom}mm` 
+          : `${paperStore.margins.bottom}mm`,
+        paddingLeft: `${paperStore.margins.left}mm`,
+        position: 'relative',
+        backgroundColor: 'white',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+        margin: '0 auto',
+        transition: 'width 0.3s, min-height 0.3s, padding 0.3s',
+      };
+    });
+    
+    // 监听纸张设置变化，触发编辑器布局更新
+    watch(() => [
+      paperStore.currentPaperSize,
+      paperStore.orientation,
+      paperStore.margins,
+      paperStore.headerSettings,
+      paperStore.footerSettings
+    ], () => {
+      nextTick(() => {
+        // 纸张设置变化后，可能需要触发编辑器重新渲染
+        if (editor.value) {
+          editor.value.commands.focus('end');
+        }
+      });
+    }, { deep: true });
+    
+    // ...
+    return {
+      // ...
+      paperContainerStyle,
+    };
+  }
+});
+```
+
+### 6.13 页眉页脚编辑器设计
+
+```vue
+<!-- HeaderFooterEditor.vue -->
+<template>
+  <div class="header-footer-editor">
+    <div class="editor-section">
+      <div class="section-header">
+        <h3>页眉设置</h3>
+        <el-switch v-model="headerEnabled" @change="updateHeaderEnabled" />
+      </div>
+      
+      <template v-if="headerEnabled">
+        <div class="form-group">
+          <label>高度 (mm):</label>
+          <el-input-number 
+            v-model="headerHeight" 
+            :min="5" 
+            :max="50"
+            @change="updateHeaderHeight"
+          />
+        </div>
+        
+        <div class="form-group">
+          <label>显示在首页:</label>
+          <el-switch v-model="headerShowOnFirstPage" @change="updateHeaderShowOnFirstPage" />
+        </div>
+        
+        <div class="editor-container">
+          <header-content-editor
+            v-model="headerContent"
+            @update:modelValue="updateHeaderContent"
+          />
+        </div>
+      </template>
+    </div>
+    
+    <div class="editor-section">
+      <div class="section-header">
+        <h3>页脚设置</h3>
+        <el-switch v-model="footerEnabled" @change="updateFooterEnabled" />
+      </div>
+      
+      <template v-if="footerEnabled">
+        <div class="form-group">
+          <label>高度 (mm):</label>
+          <el-input-number 
+            v-model="footerHeight" 
+            :min="5" 
+            :max="50"
+            @change="updateFooterHeight"
+          />
+        </div>
+        
+        <div class="form-group">
+          <label>显示在首页:</label>
+          <el-switch v-model="footerShowOnFirstPage" @change="updateFooterShowOnFirstPage" />
+        </div>
+        
+        <div class="editor-container">
+          <footer-content-editor
+            v-model="footerContent"
+            @update:modelValue="updateFooterContent"
+          />
+        </div>
+      </template>
+    </div>
+  </div>
+</template>
+```
+
+### 6.14 纸张系统实施路径
+
+纸张系统的实现将按照以下步骤进行：
+
+1. **基础设置实现**
+   - 创建纸张尺寸数据模型和状态存储
+   - 实现纸张尺寸选择器组件
+   - 开发页面方向和边距设置
+
+2. **集成到编辑器**
+   - 将纸张尺寸和方向设置应用到编辑区域
+   - 实现边距控制和预览
+   - 添加纸张尺寸动态调整功能
+
+3. **高级功能开发**
+   - 实现页眉页脚编辑器
+   - 开发页眉页脚变量系统（页码、日期等）
+   - 添加自定义纸张尺寸支持
+
+4. **打印和导出支持**
+   - 实现打印样式优化
+   - 开发PDF导出功能
+   - 添加打印预览功能
+
+5. **用户体验优化**
+   - 添加纸张设置预设
+   - 实现设置的保存和恢复
+   - 优化纸张预览和实时反馈
+
 ## 7. 开发路线图
 
 ### 7.1 第一阶段 - 核心功能
@@ -491,12 +1218,14 @@ interface PageSettings {
 - Tiptap编辑器基础设置
 - 基本文本格式化功能
 - 项目结构和基础UI组件
+- 智能内容编辑交互系统（加号按钮和浮动菜单）
 
 ### 7.2 第二阶段 - 结构化控件
 
 - 五种基础控件实现
 - Tiptap控件集成
 - 控件数据绑定系统
+- 控件与浮动菜单集成
 
 ### 7.3 第三阶段 - 分页功能
 
@@ -519,8 +1248,18 @@ interface PageSettings {
 ### 7.6 第六阶段 - 优化和集成
 
 - 性能优化
-- 导入/导出功能
-- 第三方系统集成
+- 模板系统
+- 医疗术语支持
+- 数据导入/导出
+
+### 7.7 第七阶段 - AI助手功能
+
+- AI文档助手基础架构
+- 智能内容生成与建议
+- 上下文感知的编辑辅助
+- 医疗专业术语识别与校对
+- 文档结构优化建议
+- 智能模板推荐系统
 
 ## 8. 编辑器配置系统
 
