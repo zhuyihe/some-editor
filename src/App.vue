@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import EditorView from './views/EditorView.vue';
-import AISidebar from './components/AI/AISidebar.vue'; // Import the new component
+// AISidebar import removed
 </script>
 
 <template>
   <div class="app-container">
     <EditorView />
-    <AISidebar /> {/* Add the AISidebar component here */}
+    {/* AISidebar component tag removed */}
   </div>
 </template>
 
@@ -15,6 +15,6 @@ import AISidebar from './components/AI/AISidebar.vue'; // Import the new compone
   min-height: 100vh;
   padding: 0;
   margin: 0;
-  position: relative; /* Added to ensure FAB positioning context if needed, though FAB is fixed */
+  position: relative; 
 }
 </style>
