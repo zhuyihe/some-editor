@@ -4,27 +4,48 @@
       class="mode-switcher-component"
       v-model="modeForSwitcher" 
     />
-    <div class="input-control-wrapper"> <!-- New wrapper -->
-      <SlashCommandSuggest 
-        :is-visible="showSlashCommands" 
-        :suggestions="filteredSlashCommands"
-        :active-suggestion-index="activeSuggestionIndex"
-        @selectSuggestion="handleSelectSuggestion"
-        class="slash-suggest-component"
-      />
-      <div class="input-wrapper"> <!-- This was the old .input-wrapper -->
-        <textarea 
-          ref="textareaEl"
+    <div class="input-control-wrapper">
+      <ElPopover
+        ref="slashPopoverRef"
+        :visible="slashPopoverVisible" 
+        placement="top-start"
+        :width="300" 
+        trigger="manual" 
+        :show-arrow="false"
+        popper-class="slash-command-popover" 
+        :virtual-ref="textareaEl" 
+        virtual-triggering 
+      >
+        <SlashCommandSuggest 
+          :is-visible="true"  
+          :suggestions="filteredSlashCommands"
+          :active-suggestion-index="activeSuggestionIndex"
+          @selectSuggestion="handleSelectSuggestion"
+        />
+      </ElPopover>
+      <div class="input-wrapper">
+        <ElInput
+          ref="textareaEl" 
+          type="textarea"
           v-model="currentInputText"
-          placeholder="输入消息或 / 获取指令..."
-          @input="handleInput"
+          :autosize="{ minRows: 1, maxRows: 5 }"
+          :placeholder="props.isLoading ? 'AI 正在思考...' : '输入消息或 / 获取指令...'"
+          @input="handleInput" 
           @keydown.enter.exact.prevent="onEnterPress"
           @keydown.arrow-up.prevent="onArrowUp"
           @keydown.arrow-down.prevent="onArrowDown"
-          @keydown.escape.prevent="onEscapePress" 
+          @keydown.escape.prevent="onEscapePress"
           :disabled="props.isLoading"
-        ></textarea>
-        <button @click="handleSend" :disabled="!currentInputText.trim() || props.isLoading">发送</button>
+          resize="none"
+          class="chat-textarea"
+        />
+        <ElButton
+          type="primary"
+          :icon="PromotionIcon" 
+          @click="handleSend" 
+          :disabled="!currentInputText.trim() || props.isLoading"
+          class="send-button"
+        />
       </div>
     </div>
     <div class="parameter-hint" v-if="showParameterHint">
@@ -34,29 +55,23 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, nextTick } from 'vue'; // Added nextTick from previous turn, ensure it's here.
+import { ref, computed, nextTick } from 'vue';
+import { ElInput, ElButton, ElPopover } from 'element-plus';
+import { Promotion as PromotionIcon } from '@element-plus/icons-vue';
 import AIModeSwitcher from './AIModeSwitcher.vue';
 import SlashCommandSuggest from './SlashCommandSuggest.vue';
 
 interface CommandSuggestion {
   name: string;
   description: string;
-  parameterFormat?: string; // Added for parameter hints
+  parameterFormat?: string; 
+  value?: string; // For ElAutocomplete or custom list, often same as name
 }
 
 const props = defineProps({
-  modelValue: { 
-    type: String,
-    required: true
-  },
-  isLoading: { 
-    type: Boolean,
-    default: false
-  },
-  currentAiMode: { 
-    type: String,
-    required: true
-  }
+  modelValue: { type: String, required: true },
+  isLoading: { type: Boolean, default: false },
+  currentAiMode: { type: String, required: true }
 });
 
 const emit = defineEmits(['update:modelValue', 'sendMessage', 'update:currentAiMode']);
@@ -66,40 +81,29 @@ const modeForSwitcher = computed({
   set: (value) => emit('update:currentAiMode', value)
 });
 
-const textareaEl = ref<HTMLTextAreaElement | null>(null);
+const textareaEl = ref<InstanceType<typeof ElInput> | null>(null); // Ref for ElInput
+const slashPopoverRef = ref<InstanceType<typeof ElPopover> | null>(null); // Ref for ElPopover
 const activeSuggestionIndex = ref(-1);
+const slashPopoverVisible = ref(false); // For ElPopover visibility
 
-const currentInputText = computed({
+const currentInputText = computed({ // This computed prop remains the same
   get: () => props.modelValue,
   set: (value) => emit('update:modelValue', value)
 });
 
-const showSlashCommands = ref(false);
-const showParameterHint = ref(false); // New state for parameter hint
-const parameterHintText = ref(''); // New state
-let parameterHintTimer: number | undefined = undefined; // New state
-const commandTextForHint = ref(''); // New state
+const showParameterHint = ref(false);
+const parameterHintText = ref('');
+let parameterHintTimer: number | undefined = undefined;
+const commandTextForHint = ref('');
 
 const allSlashCommands = ref<CommandSuggestion[]>([
-  { 
-    name: '/生成笔记', 
-    description: '生成病历记录', 
-    parameterFormat: '[笔记类型 (SOAP|病程|...)] [可选: "关键词"]' 
-  },
-  { 
-    name: '/查询药物', 
-    description: '查询药物信息', 
-    parameterFormat: '[药物名称] [可选: 剂量]' 
-  },
-  { 
-    name: '/安排检查', 
-    description: '为患者安排检查项目', 
-    parameterFormat: '[检查项目名称] 日期: [日期] [可选: 注意事项]'
-  }
+  { name: '/生成笔记', description: '生成病历记录', parameterFormat: '[笔记类型] [关键词]', value: '/生成笔记' },
+  { name: '/查询药物', description: '查询药物信息', parameterFormat: '[药物名称] [剂量]', value: '/查询药物' },
+  { name: '/安排检查', description: '为患者安排检查项目', parameterFormat: '[检查项目] [日期]', value: '/安排检查' }
 ]);
 
 const filteredSlashCommands = computed(() => {
-  if (!showSlashCommands.value || !currentInputText.value.startsWith('/')) {
+  if (!slashPopoverVisible.value || !currentInputText.value.startsWith('/')) {
     return [];
   }
   const query = currentInputText.value.substring(1).toLowerCase();
@@ -109,26 +113,21 @@ const filteredSlashCommands = computed(() => {
   );
 });
 
-const handleInput = (event: Event) => {
-  const target = event.target as HTMLTextAreaElement;
-  const currentValue = target.value;
-  emit('update:modelValue', currentValue);
-
-  target.style.height = 'auto';
-  target.style.height = `${target.scrollHeight}px`;
-
-  if (showParameterHint.value && !currentValue.startsWith(commandTextForHint.value)) {
+// Updated handleInput for ElInput and ElPopover
+const handleInput = (value: string) => { // ElInput's input event passes the value directly
+  // currentInputText.value = value; // This is handled by v-model on ElInput
+  
+  if (showParameterHint.value && !value.startsWith(commandTextForHint.value)) {
      showParameterHint.value = false;
      clearTimeout(parameterHintTimer);
   }
 
-  if (currentValue.startsWith('/')) {
-    showSlashCommands.value = true;
+  if (value.startsWith('/')) {
+    slashPopoverVisible.value = true; // Show popover
     activeSuggestionIndex.value = -1; 
   } else {
-    showSlashCommands.value = false;
+    slashPopoverVisible.value = false; // Hide popover
     activeSuggestionIndex.value = -1;
-    // If input is cleared or no longer a command, also hide hint
     if (showParameterHint.value) {
         showParameterHint.value = false;
         clearTimeout(parameterHintTimer);
@@ -139,33 +138,31 @@ const handleInput = (event: Event) => {
 const handleSend = () => {
   if (currentInputText.value.trim() && !props.isLoading) {
     emit('sendMessage', currentInputText.value.trim());
-    emit('update:modelValue', ''); // Clear input
-    showSlashCommands.value = false;
+    emit('update:modelValue', ''); 
+    slashPopoverVisible.value = false;
     activeSuggestionIndex.value = -1;
-    if (textareaEl.value) {
-      textareaEl.value.style.height = 'auto';
-    }
+    // ElInput autosize handles height reset
   }
 };
 
 const onArrowUp = () => {
-  if (showSlashCommands.value && filteredSlashCommands.value.length > 0) {
+  if (slashPopoverVisible.value && filteredSlashCommands.value.length > 0) {
     activeSuggestionIndex.value = 
       (activeSuggestionIndex.value - 1 + filteredSlashCommands.value.length) % filteredSlashCommands.value.length;
-    scrollToActiveSuggestion();
+    // scrollToActiveSuggestion(); // Implement if needed for popover content
   }
 };
 
 const onArrowDown = () => {
-  if (showSlashCommands.value && filteredSlashCommands.value.length > 0) {
+  if (slashPopoverVisible.value && filteredSlashCommands.value.length > 0) {
     activeSuggestionIndex.value = 
       (activeSuggestionIndex.value + 1) % filteredSlashCommands.value.length;
-    scrollToActiveSuggestion();
+    // scrollToActiveSuggestion(); // Implement if needed
   }
 };
 
 const onEnterPress = () => {
-  if (showSlashCommands.value && activeSuggestionIndex.value !== -1) {
+  if (slashPopoverVisible.value && activeSuggestionIndex.value !== -1) {
     selectActiveSuggestion();
   } else {
     handleSend(); 
@@ -173,9 +170,12 @@ const onEnterPress = () => {
 };
 
 const onEscapePress = () => {
-  if (showSlashCommands.value) {
-    showSlashCommands.value = false;
+  if (slashPopoverVisible.value) {
+    slashPopoverVisible.value = false;
     activeSuggestionIndex.value = -1;
+  } else if (showParameterHint.value) { // Also hide hint on Escape
+    showParameterHint.value = false;
+    clearTimeout(parameterHintTimer);
   }
 };
 
@@ -185,108 +185,75 @@ const selectActiveSuggestion = () => {
   }
 };
 
-const scrollToActiveSuggestion = () => {
-  console.log("Scrolling to active suggestion index:", activeSuggestionIndex.value);
-  // Placeholder for actual scroll logic if list becomes long
-};
+// const scrollToActiveSuggestion = () => { /* ... */ }; // Placeholder
 
 const handleSelectSuggestion = (suggestion: CommandSuggestion) => {
-  const commandText = suggestion.name + ' '; // Add space
+  const commandText = suggestion.name + ' '; 
   emit('update:modelValue', commandText); 
-  commandTextForHint.value = commandText; // Store for hint logic
-  showSlashCommands.value = false;
+  commandTextForHint.value = commandText; 
+  slashPopoverVisible.value = false; // Hide popover
   activeSuggestionIndex.value = -1;
   
-  // Parameter Hint Logic
   if (suggestion.parameterFormat) {
     parameterHintText.value = `格式: ${suggestion.parameterFormat}`;
     showParameterHint.value = true;
-    clearTimeout(parameterHintTimer); // Clear previous timer if any
+    clearTimeout(parameterHintTimer); 
     parameterHintTimer = window.setTimeout(() => {
       showParameterHint.value = false;
-    }, 4000); // Show hint for 4 seconds
+    }, 4000); 
   } else {
-    showParameterHint.value = false; // No format for this command
+    showParameterHint.value = false; 
   }
 
-  textareaEl.value?.focus();
-  // Auto-grow after selection
+  // Focus ElInput after selection
   nextTick(() => {
-    if (textareaEl.value) {
-      textareaEl.value.style.height = 'auto';
-      textareaEl.value.style.height = `${textareaEl.value.scrollHeight}px`;
-    }
+    textareaEl.value?.focus();
   });
 };
-
-// nextTick was already imported from previous turn's changes.
-
 </script>
 
 <style scoped lang="scss">
 .chat-input-area {
   padding: 10px;
-  border-top: 1px solid #ccc;
-  background-color: #f9f9f9;
-  // position: relative; // No longer needed here, moved to wrapper
+  border-top: 1px solid var(--el-border-color-lighter);
+  background-color: var(--el-bg-color-page);
 }
-.input-control-wrapper { // New wrapper style
+.input-control-wrapper {
   position: relative;
 }
 .input-wrapper {
   display: flex;
   align-items: flex-end; 
+  gap: 8px;
   margin-top: 8px;
 }
-textarea {
+.chat-textarea { // Class for ElInput
   flex-grow: 1;
-  min-height: 30px; 
-  max-height: 120px; 
-  padding: 8px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  resize: none; 
-  overflow-y: auto; 
-  line-height: 1.4;
-  transition: height 0.2s ease-in-out;
-  &:disabled { 
-    background-color: #e9ecef; 
-    cursor: not-allowed; 
-  }
+  // ElInput's :autosize handles height. Specific inner styling below.
 }
-button {
-  padding: 8px 15px;
-  margin-left: 8px;
-  border: none;
-  background-color: var(--primary-color, #409eff);
-  color: white;
-  border-radius: 4px;
-  cursor: pointer;
-  &:disabled {
-    background-color: #a0cfff; 
-    opacity: 0.7; 
-    cursor: not-allowed;
-  }
+:deep(.el-textarea__inner) { 
+  padding: 8px 10px; 
+  line-height: 1.5;
+  resize: none !important; // Override if ElInput adds resize
+}
+.send-button {
+  // Default ElButton styling is usually good.
 }
 .mode-switcher-component {
   margin-bottom: 8px; 
 }
-.slash-suggest-component {
-  position: absolute; // Crucial for positioning within .input-control-wrapper
-  bottom: 100%; 
-  left: 0;
-  right: 0;
-  margin-bottom: 4px; 
-  z-index: 20; 
-}
+// .slash-suggest-component class is no longer directly positioned here.
+// Positioning is handled by ElPopover.
 .parameter-hint {
   font-size: 0.8em;
-  color: var(--el-text-color-secondary, #909399);
+  color: var(--el-text-color-secondary);
   padding: 4px 8px;
   margin-top: 4px;
-  background-color: var(--el-fill-color-lighter, #f5f7fa);
-  border-radius: 4px;
+  background-color: var(--el-fill-color-lighter);
+  border-radius: var(--el-border-radius-base);
   text-align: left; 
   transition: opacity 0.3s ease-in-out; 
 }
 </style>
+// Popper class styling will be added globally or via :deep in a parent if needed
+// For now, assuming default ElPopover content area is fine or SlashCommandSuggest handles its own padding.

@@ -8,13 +8,20 @@
       <div class="main-editor-content-wrapper">
         <slot></slot> 
       </div>
-      <AISidebar 
-        @toggle-request="handleAiPanelToggle" 
-        :show-panel="isAiPanelVisible" 
-        class="integrated-ai-sidebar"
-      />
+      <!-- AISidebar is NO LONGER here in the flex container -->
     </div>
     <editor-footer />
+
+    <ElDrawer
+      v-model="isAiPanelVisible"
+      direction="rtl"
+      size="380px" 
+      :with-header="false" 
+      :destroy-on-close="false"
+      class="ai-sidebar-drawer" 
+    >
+      <AISidebar @toggle-request="handleAiPanelToggle" />
+    </ElDrawer>
   </div>
 </template>
 
@@ -84,19 +91,18 @@ export default defineComponent({
   flex-grow: 1; 
   display: flex; 
   justify-content: center; 
-  // padding: 12px; // Removed
   overflow: auto; 
   position: relative; 
-  transition: width 0.3s ease-in-out; 
+  // transition: width 0.3s ease-in-out; // REMOVE THIS - ElDrawer overlays
 }
 
-.integrated-ai-sidebar {
-  // AISidebar.vue itself will be a block, its <aside> panel is conditional.
-  // This class is here if any specific transition or sizing overrides were needed from parent.
-  // However, AISidebar's internal styling with flex-shrink:0 and fixed width should be sufficient.
-  // We can add a transition here to smoothly animate the space AISidebar *might* take
-  // if its root element's width changed, rather than just the <aside> appearing/disappearing.
-  // For now, this is mostly a placeholder as AISidebar's root is always there.
+// .integrated-ai-sidebar {} // Removed as AISidebar is now in ElDrawer
+
+// Style for ElDrawer itself if needed
+:deep(.ai-sidebar-drawer .el-drawer__body) {
+  padding: 0;
+  display: flex; // To make AISidebar fill height
+  flex-direction: column; // To make AISidebar fill height
 }
 
 .editor-footer {

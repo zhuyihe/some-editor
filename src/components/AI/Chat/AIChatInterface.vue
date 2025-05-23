@@ -1,9 +1,14 @@
 <template>
   <div class="ai-chat-interface">
-    <ChatMessageList :messages="messages" class="message-list-component" />
-    <div class="ai-thinking-indicator" v-if="isLoadingAIResponse">
-      AI 正在思考...
-    </div>
+    <ChatMessageList 
+      :messages="messages" 
+      class="message-list-component"
+      v-loading="isLoadingAIResponse"
+      element-loading-text="AI 正在思考..."
+      element-loading-svg-view-box="-10, -10, 50, 50" 
+      :element-loading-spinner="svgSpinner"
+    />
+    <!-- Removed old ai-thinking-indicator -->
     <ChatInputArea 
       v-model="currentInput" 
       v-model:currentAiMode="currentMode"
@@ -16,6 +21,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue';
+import { ElMessage } from 'element-plus'; // Import ElMessage
 import ChatMessageList from './ChatMessageList.vue';
 import ChatInputArea from './ChatInputArea.vue';
 
@@ -26,6 +32,8 @@ interface Message {
   content: any;
   timestamp: Date | string;
 }
+
+const svgSpinner = `<svg class="circular" viewBox="0 0 20 20" style="width:20px; height:20px; stroke:var(--el-color-primary);"> <circle class="path" cx="10" cy="10" r="8" fill="none" stroke-width="2" stroke-linecap="round"></circle> </svg>`;
 
 const messages = ref<Message[]>([
   { id: '1', sender: 'user', type: 'text', content: '你好，AI助手。', timestamp: new Date(Date.now() - 1000 * 60 * 10) },
@@ -56,7 +64,6 @@ const currentInput = ref('');
 const isLoadingAIResponse = ref(false); 
 const currentMode = ref('ask'); 
 
-// Mock command definitions
 const commandRegistry: Array<{ name: string, requiredParams: string[], paramHint: string }> = [
   { name: '/生成笔记', requiredParams: ['笔记类型'], paramHint: '请提供笔记类型 (例如 SOAP, 病程记录)。' },
   { name: '/查询药物', requiredParams: ['药物名称'], paramHint: '请提供药物名称。' },
@@ -81,7 +88,6 @@ const handleUserMessageSend = (messageText: string) => {
   const parts = messageText.trim().split(' ');
   const commandName = parts[0];
   const commandArgs = parts.slice(1).filter(arg => arg.trim() !== '');
-
   const matchedCommand = commandRegistry.find(cmd => cmd.name === commandName);
 
   if (matchedCommand) {
@@ -108,7 +114,22 @@ const handleUserMessageSend = (messageText: string) => {
       timestamp: new Date()
     };
     messages.value.push(aiResponseMessage);
-    isLoadingAIResponse.value = false;
+    
+    // Simulate Operation Results/Errors with ElMessage
+    if (messageText.includes("error_test")) { 
+      ElMessage({
+        message: '模拟操作失败：无法处理您的请求。',
+        type: 'error',
+        duration: 3000,
+      });
+    } else if (messageText.startsWith('/')) {
+        ElMessage({
+        message: `指令 "${matchedCommand ? matchedCommand.name : commandName}" 执行模拟完成。`,
+        type: 'success',
+        duration: 2000,
+      });
+    }
+    isLoadingAIResponse.value = false; 
   }, 1000 + Math.random() * 1000);
 };
 </script>
@@ -122,16 +143,10 @@ const handleUserMessageSend = (messageText: string) => {
 }
 .message-list-component {
   flex-grow: 1;
-  overflow-y: auto; 
+  // overflow-y: auto; // Handled by ElScrollbar inside ChatMessageList
 }
 .input-area-component {
   flex-shrink: 0;
 }
-.ai-thinking-indicator {
-  padding: 4px 10px; 
-  font-size: 0.85em;
-  color: var(--el-text-color-secondary, #909399);
-  text-align: center; 
-  background-color: var(--el-fill-color-lighter, #f5f7fa); 
-}
+// .ai-thinking-indicator styles removed as the div is removed
 </style>

@@ -25,38 +25,37 @@
       </svg>
     </button>
 
-    <!-- Collapsible Sidebar Panel - Conditionally rendered based on showPanel prop -->
+    <!-- Collapsible Sidebar Panel - No longer conditional on props.showPanel -->
     <Transition name="ai-panel-slide">
-      <aside class="ai-sidebar" v-if="props.showPanel">
+      <aside class="ai-sidebar"> 
         <header class="sidebar-header">
           <h3 class="header-title">AI 助手</h3>
-        <div class="header-actions">
-          <button
-            class="action-button history-button"
-            @click="toggleHistoryPopover"
-            aria-label="View Chat History"
-          >
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
-              <path d="M12 2C6.486 2 2 6.486 2 12s4.486 10 10 10 10-4.486 10-10S17.514 2 12 2zm0 18c-4.411 0-8-3.589-8-8s3.589-8 8-8 8 3.589 8 8-3.589 8-8 8z"/>
-              <path d="M12.5 7H11v6l5.25 3.15.75-1.23-4.5-2.67z"/>
-            </svg>
-          </button>
-          <div class="history-popover" v-if="showHistoryPopover">
-            <div class="popover-content">
-              聊天历史功能开发中...
+          <div class="header-actions">
+            <ElTooltip content="聊天历史" placement="bottom" :hide-after="0">
+              <ElButton 
+                type="text" 
+                :icon="Files" 
+                @click="toggleHistoryPopover" 
+                aria-label="聊天历史"
+                class="header-action-btn" 
+              />
+            </ElTooltip>
+            <div class="history-popover" v-if="showHistoryPopover">
+              <div class="popover-content">
+                聊天历史功能开发中...
+              </div>
             </div>
+            <ElTooltip content="关闭侧边栏" placement="bottom" :hide-after="0">
+              <ElButton 
+                type="text" 
+                :icon="Close" 
+                @click="$emit('toggle-request')" 
+                aria-label="关闭侧边栏"
+                class="header-action-btn"
+              />
+            </ElTooltip>
           </div>
-          <button
-            class="action-button close-button"
-            @click="$emit('toggle-request')" 
-            aria-label="Close AI Assistant"
-          >
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
-              <path d="M18.3 5.71a.996.996 0 0 0-1.41 0L12 10.59 7.11 5.7A.996.996 0 1 0 5.7 7.11L10.59 12 5.7 16.89a.996.996 0 1 0 1.41 1.41L12 13.41l4.89 4.89a.996.996 0 1 0 1.41-1.41L13.41 12l4.89-4.89c.38-.38.38-1.02 0-1.4z"/>
-            </svg>
-          </button>
-        </div>
-      </header>
+        </header>
       <div class="sidebar-content">
         <AIChatInterface />
       </div>
@@ -66,13 +65,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, defineProps } from 'vue'; // Added defineProps
-import AIChatInterface from './Chat/AIChatInterface.vue'; // Import AIChatInterface
-
-// Define props
-const props = defineProps({
-  showPanel: Boolean
-});
+import { ref, onMounted, onUnmounted } from 'vue'; // defineProps removed as props were removed
+import AIChatInterface from './Chat/AIChatInterface.vue';
+import { Clock, Close, Files } from '@element-plus/icons-vue'; // Added icon imports
 
 // Define emitted events
 const emit = defineEmits(['toggle-request']);
@@ -174,11 +169,11 @@ $box-shadow-light: var(--el-box-shadow-light, 0px 0px 12px rgba(0, 0, 0, 0.12));
 }
 
 .ai-sidebar {
-  width: $sidebar-width;
+  // width: $sidebar-width; // Removed, ElDrawer controls width
   height: 100%; 
   background-color: $background-color-base;
-  border-left: 1px solid $border-color-base;
-  box-shadow: -2px 0 5px rgba(0,0,0,0.05); 
+  // border-left: 1px solid $border-color-base; // Removed, ElDrawer has border
+  // box-shadow: -2px 0 5px rgba(0,0,0,0.05); // Removed, ElDrawer has shadow
   display: flex;
   flex-direction: column;
   flex-shrink: 0; 
@@ -199,65 +194,56 @@ $box-shadow-light: var(--el-box-shadow-light, 0px 0px 12px rgba(0, 0, 0, 0.12));
 }
 
 .sidebar-header {
-  height: $header-height;
-  padding: 0 16px;
+  // height: $header-height; // Keep if fixed height is desired
+  padding: 0 10px 0 16px; // Adjust padding for ElButtons
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-bottom: 1px solid $border-color-light;
-  flex-shrink: 0; 
+  border-bottom: 1px solid var(--el-border-color-lighter, #EBEEF5); // Use Element Plus variable
+  flex-shrink: 0;
 
   .header-title {
-    font-size: 18px;
+    font-size: var(--el-font-size-large, 18px); // Use Element Plus variable
     font-weight: 600;
-    color: $text-color-primary;
+    color: var(--el-text-color-primary, #303133);
     margin: 0;
   }
 
   .header-actions {
     display: flex;
     align-items: center;
-    gap: 8px; 
-    position: relative; 
+    gap: 4px; // Reduced gap for text/icon buttons
 
-    .action-button {
-      background: none;
-      border: none;
-      padding: 4px;
-      cursor: pointer;
-      color: $text-color-secondary;
-      border-radius: 4px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-
-      &:hover {
-        color: $primary-color;
-      }
-
-      svg {
-        width: 20px;
-        height: 20px;
+    .el-button.header-action-btn { // Targeting ElButton specifically
+      font-size: 18px; // Icon size
+      padding: 6px; // Make click area decent
+      color: var(--el-text-color-regular, #606266); // Default icon color
+      
+      &:hover, &:focus {
+        color: var(--el-color-primary, #409eff);
+        background-color: var(--el-fill-color-light, #f5f7fa); // Subtle background on hover
       }
     }
-  }
-}
+    
+    // Keep .history-popover styles as they are for now
+    .history-popover { 
+      position: absolute;
+      top: calc(100% + 8px); 
+      right: 0; 
+      min-width: 200px;
+      background-color: var(--el-bg-color-overlay, #FFFFFF);
+      border: 1px solid var(--el-border-color-light, #e4e7ed);
+      border-radius: var(--el-border-radius-base, 4px);
+      box-shadow: var(--el-box-shadow-light, 0px 0px 12px rgba(0,0,0,0.12));
+      z-index: 20; // Above buttons
+      padding: 8px;
 
-.history-popover {
-  position: absolute;
-  top: calc(100% + 8px); 
-  right: 0; 
-  min-width: 200px;
-  background-color: $background-color-paper;
-  border: 1px solid $border-color-light;
-  border-radius: 4px;
-  box-shadow: $box-shadow-light;
-  z-index: 10; 
-
-  .popover-content {
-     padding: 8px 12px; 
-     font-size: 14px;
-     color: $text-color-regular; 
+      .popover-content {
+        padding: 8px 12px; 
+        font-size: 14px;
+        color: var(--el-text-color-regular); 
+      }
+    }
   }
 }
 

@@ -1,15 +1,15 @@
 <template>
-  <div class="ai-mode-switcher">
-    <label for="mode-select" class="mode-label">AI 模式:</label>
-    <select id="mode-select" v-model="selectedMode">
-      <option value="ask">提问 Ask</option>
-      <option value="agent">代理 Agent</option>
-    </select>
+  <div class="ai-mode-switcher-ep">
+    <ElRadioGroup v-model="selectedMode" size="small">
+      <ElRadioButton label="ask">提问 Ask</ElRadioButton>
+      <ElRadioButton label="agent">代理 Agent</ElRadioButton>
+    </ElRadioGroup>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue';
+import { ElRadioGroup, ElRadioButton } from 'element-plus';
 
 const props = defineProps({
   modelValue: {
@@ -28,27 +28,16 @@ const selectedMode = computed({
 </script>
 
 <style scoped lang="scss">
-.ai-mode-switcher {
+.ai-mode-switcher-ep {
   display: flex;
-  align-items: center;
-  gap: 8px; // Space between label and select
-  padding: 4px 0; // Some vertical padding if it's standalone
-}
-.mode-label {
-  font-size: 0.9em;
-  color: var(--el-text-color-regular, #606266);
-}
-select {
-  padding: 6px 10px;
-  border-radius: 4px;
-  border: 1px solid var(--el-border-color, #dcdfe6);
-  background-color: #fff;
-  font-size: 0.9em;
-  min-width: 120px; // Give it some base width
+  // align-items: center; // ElRadioGroup usually handles its own alignment
+  // gap: 8px; 
+  // padding: 4px 0; // May not be needed if parent handles padding
 
-  &:focus {
-    border-color: var(--el-color-primary, #409eff);
-    box-shadow: 0 0 0 2px rgba(64,158,255, 0.2); // Using direct RGB for el-color-primary-rgb fallback
-  }
+  // Example of deeper styling if needed:
+  // :deep(.el-radio-button__inner) { 
+  //   padding: 6px 12px; 
+  //   font-size: 0.9em; 
+  // }
 }
 </style>
