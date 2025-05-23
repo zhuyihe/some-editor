@@ -1,5 +1,5 @@
 <template>
-  <div class="chat-input-area">
+  <div class="chat-input-area-v15-layout"> <!-- Renamed root class -->
     <AIModeSwitcher 
       class="mode-switcher-component"
       v-model="modeForSwitcher" 
@@ -23,12 +23,12 @@
           @selectSuggestion="handleSelectSuggestion"
         />
       </ElPopover>
-      <div class="input-wrapper">
+      <div class="textarea-send-button-wrapper"> <!-- New wrapper -->
         <ElInput
           ref="textareaEl" 
           type="textarea"
           v-model="currentInputText"
-          :autosize="{ minRows: 1, maxRows: 5 }"
+          :autosize="{ minRows: 1, maxRows: 4 }"  
           :placeholder="props.isLoading ? 'AI 正在思考...' : '输入消息或 / 获取指令...'"
           @input="handleInput" 
           @keydown.enter.exact.prevent="onEnterPress"
@@ -37,14 +37,15 @@
           @keydown.escape.prevent="onEscapePress"
           :disabled="props.isLoading"
           resize="none"
-          class="chat-textarea"
+          class="chat-textarea-v15" 
         />
         <ElButton
           type="primary"
-          :icon="PromotionIcon" 
+          shape="circle" 
+          :icon="SendIcon" 
           @click="handleSend" 
           :disabled="!currentInputText.trim() || props.isLoading"
-          class="send-button"
+          class="send-button-v15" 
         />
       </div>
     </div>
@@ -57,7 +58,7 @@
 <script setup lang="ts">
 import { ref, computed, nextTick } from 'vue';
 import { ElInput, ElButton, ElPopover } from 'element-plus';
-import { Promotion as PromotionIcon } from '@element-plus/icons-vue';
+import { Promotion as SendIcon } from '@element-plus/icons-vue'; // Renamed to SendIcon
 import AIModeSwitcher from './AIModeSwitcher.vue';
 import SlashCommandSuggest from './SlashCommandSuggest.vue';
 
@@ -65,7 +66,7 @@ interface CommandSuggestion {
   name: string;
   description: string;
   parameterFormat?: string; 
-  value?: string; // For ElAutocomplete or custom list, often same as name
+  value?: string; 
 }
 
 const props = defineProps({
@@ -213,47 +214,69 @@ const handleSelectSuggestion = (suggestion: CommandSuggestion) => {
 </script>
 
 <style scoped lang="scss">
-.chat-input-area {
-  padding: 10px;
-  border-top: 1px solid var(--el-border-color-lighter);
-  background-color: var(--el-bg-color-page);
-}
-.input-control-wrapper {
-  position: relative;
-}
-.input-wrapper {
+.chat-input-area-v15-layout { // Renamed root class
+  // padding: 10px; // Padding will be handled by Region D container (AISidebarPanel)
+  border-top: none; 
+  background-color: #FFFFFF; // Match Region D background
   display: flex;
+  flex-direction: column;
+  gap: 8px; 
+}
+
+.input-control-wrapper {
+  position: relative; // For slash popover
+}
+
+.textarea-send-button-wrapper { // New wrapper
+  position: relative; 
+  display: flex; 
   align-items: flex-end; 
-  gap: 8px;
-  margin-top: 8px;
+  gap: 8px; 
 }
-.chat-textarea { // Class for ElInput
+
+.chat-textarea-v15.el-textarea { // Target ElInput with new class
+  :deep(.el-textarea__inner) {
+    border-radius: 8px !important; 
+    border-color: #E0E6ED !important; 
+    padding: 10px 12px !important; 
+    line-height: 1.5; 
+  }
   flex-grow: 1;
-  // ElInput's :autosize handles height. Specific inner styling below.
 }
-:deep(.el-textarea__inner) { 
-  padding: 8px 10px; 
-  line-height: 1.5;
-  resize: none !important; // Override if ElInput adds resize
+
+.send-button-v15.el-button { // New class for send button
+  width: 36px;  // Diameter for circle button (adjust based on icon size and padding)
+  height: 36px; // Diameter for circle button
+  // padding: 0; // Reset padding for circle buttons if using fixed W/H
+  font-size: 18px; // Adjust icon size as needed
+  // Ensure icon is white if primary button text isn't automatically white
+  .el-icon { 
+    color: white;
+  }
+  // If theme's primary is not #2B79D0, uncomment and set custom background:
+  // background-color: #2B79D0;
+  // border-color: #2B79D0;
+  // &:hover, &:focus, &:active {
+  //   background-color: lighten(#2B79D0, 10%);
+  //   border-color: lighten(#2B79D0, 10%);
+  // }
 }
-.send-button {
-  // Default ElButton styling is usually good.
-}
-.mode-switcher-component {
+      
+.mode-switcher-component { 
   margin-bottom: 8px; 
 }
-// .slash-suggest-component class is no longer directly positioned here.
-// Positioning is handled by ElPopover.
-.parameter-hint {
+
+// Positioning for ElPopover is handled by its props.
+// .slash-suggest-component { ... } 
+
+.parameter-hint { 
   font-size: 0.8em;
   color: var(--el-text-color-secondary);
   padding: 4px 8px;
-  margin-top: 4px;
+  // margin-top: 4px; // Removed, gap on parent handles spacing
   background-color: var(--el-fill-color-lighter);
   border-radius: var(--el-border-radius-base);
   text-align: left; 
   transition: opacity 0.3s ease-in-out; 
 }
 </style>
-// Popper class styling will be added globally or via :deep in a parent if needed
-// For now, assuming default ElPopover content area is fine or SlashCommandSuggest handles its own padding.
