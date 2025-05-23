@@ -1,13 +1,12 @@
 <template>
-  <div>
-    <!-- AI Trigger Icon (Floating Action Button) -->
+  <div> <!-- Root div, always rendered if AISidebar component is in parent DOM -->
+    <!-- AI Trigger Icon (Floating Action Button) - Always rendered -->
     <button
       class="ai-trigger-fab"
-      @click="toggleSidebar"
-      :class="{ 'is-active': isSidebarOpen }"
+      @click="$emit('toggle-request')"
       aria-label="Toggle AI Assistant"
     >
-      <!-- SVG Icon Concept 1 (Abstract Geometric Brain/Chip) - Inlined or as a component -->
+      <!-- SVG content for FAB -->
       <svg class="fab-icon" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" width="28" height="28">
         <circle cx="50" cy="50" r="45" class="fab-icon-background"/>
         <circle cx="50" cy="50" r="12" class="fab-icon-foreground"/>
@@ -26,24 +25,22 @@
       </svg>
     </button>
 
-    <!-- Collapsible Sidebar Panel -->
-    <aside class="ai-sidebar" :class="{ 'is-open': isSidebarOpen }">
-      <!-- Sidebar Header -->
-      <header class="sidebar-header">
-        <h3 class="header-title">AI 助手</h3>
+    <!-- Collapsible Sidebar Panel - Conditionally rendered based on showPanel prop -->
+    <Transition name="ai-panel-slide">
+      <aside class="ai-sidebar" v-if="props.showPanel">
+        <header class="sidebar-header">
+          <h3 class="header-title">AI 助手</h3>
         <div class="header-actions">
           <button
             class="action-button history-button"
             @click="toggleHistoryPopover"
             aria-label="View Chat History"
           >
-            <!-- History (Clock) SVG Icon -->
             <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
               <path d="M12 2C6.486 2 2 6.486 2 12s4.486 10 10 10 10-4.486 10-10S17.514 2 12 2zm0 18c-4.411 0-8-3.589-8-8s3.589-8 8-8 8 3.589 8 8-3.589 8-8 8z"/>
               <path d="M12.5 7H11v6l5.25 3.15.75-1.23-4.5-2.67z"/>
             </svg>
           </button>
-          <!-- History Popover -->
           <div class="history-popover" v-if="showHistoryPopover">
             <div class="popover-content">
               聊天历史功能开发中...
@@ -51,63 +48,41 @@
           </div>
           <button
             class="action-button close-button"
-            @click="closeSidebar"
+            @click="$emit('toggle-request')" 
             aria-label="Close AI Assistant"
           >
-            <!-- Close (X) SVG Icon -->
             <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
               <path d="M18.3 5.71a.996.996 0 0 0-1.41 0L12 10.59 7.11 5.7A.996.996 0 1 0 5.7 7.11L10.59 12 5.7 16.89a.996.996 0 1 0 1.41 1.41L12 13.41l4.89 4.89a.996.996 0 1 0 1.41-1.41L13.41 12l4.89-4.89c.38-.38.38-1.02 0-1.4z"/>
             </svg>
           </button>
         </div>
       </header>
-
-      <!-- Sidebar Content Area -->
       <div class="sidebar-content">
         <p>AI 聊天界面加载中...</p>
       </div>
-    </aside>
-
-    <!-- Optional: Overlay for clicking outside to close -->
-    <div
-      class="sidebar-overlay"
-      v-if="isSidebarOpen"
-      @click="closeSidebar"
-    ></div>
-
+      </aside>
+    </Transition>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref, onMounted, onUnmounted, defineProps } from 'vue'; // Added defineProps
 
-const isSidebarOpen = ref(false);
+// Define props
+const props = defineProps({
+  showPanel: Boolean
+});
+
+// Define emitted events
+const emit = defineEmits(['toggle-request']);
+
 const showHistoryPopover = ref(false);
 
-const toggleSidebar = () => {
-  isSidebarOpen.value = !isSidebarOpen.value;
-  if (isSidebarOpen.value) {
-    // When sidebar opens, ensure history popover is closed
-    showHistoryPopover.value = false; 
-  }
-};
-
-const openSidebar = () => {
-  isSidebarOpen.value = true;
-  showHistoryPopover.value = false; 
-};
-
-const closeSidebar = () => {
-  isSidebarOpen.value = false;
-  showHistoryPopover.value = false; 
-};
-
 const toggleHistoryPopover = (event: MouseEvent) => {
-  event.stopPropagation(); // Prevent sidebar from closing if overlay is used
+  event.stopPropagation(); 
   showHistoryPopover.value = !showHistoryPopover.value;
 };
 
-// Optional: Close popover when clicking outside of it
 const handleClickOutsidePopover = (event: MouseEvent) => {
   const popover = document.querySelector('.history-popover');
   const historyButton = document.querySelector('.history-button');
@@ -122,18 +97,15 @@ const handleClickOutsidePopover = (event: MouseEvent) => {
   }
 };
 
-// Optional: Close sidebar with Escape key
 const handleEscKey = (event: KeyboardEvent) => {
-  if (event.key === 'Escape' && isSidebarOpen.value) {
-    closeSidebar();
-  } else if (event.key === 'Escape' && showHistoryPopover.value) {
+  if (event.key === 'Escape' && showHistoryPopover.value) {
     showHistoryPopover.value = false;
   }
 };
 
 onMounted(() => {
   document.addEventListener('keydown', handleEscKey);
-  document.addEventListener('click', handleClickOutsidePopover);
+  document.addEventListener('click', handleClickOutsidePopover); 
 });
 
 onUnmounted(() => {
@@ -143,12 +115,8 @@ onUnmounted(() => {
 </script>
 
 <style scoped lang="scss">
-// It's good practice to ensure SCSS variables are available.
-// Assuming Vite setup might provide global SCSS variables,
-// or they are imported via vite.config.js css preprocessorOptions.
-// Fallbacks are provided if variables are not defined.
-
-$sidebar-width: 360px;
+// SCSS content remains the same as previous version where it was adapted for integrated panel
+$sidebar-width: 360px; 
 $fab-size: 56px;
 $fab-icon-size: 28px;
 $header-height: 60px; 
@@ -159,13 +127,11 @@ $text-color-regular: var(--text-color-regular, #606266);
 $background-color-base: var(--background-color-base, #f5f7fa);
 $border-color-base: var(--border-color-base, #dcdfe6);
 $border-color-light: var(--border-color-light, #e4e7ed);
-// Using Element Plus variable names as a guide for popover styling consistency
 $background-color-paper: var(--el-bg-color-overlay, #FFFFFF); 
 $box-shadow-light: var(--el-box-shadow-light, 0px 0px 12px rgba(0, 0, 0, 0.12));
 
-
 .ai-trigger-fab {
-  position: fixed;
+  position: fixed; 
   bottom: 30px;
   right: 30px;
   width: $fab-size;
@@ -179,13 +145,12 @@ $box-shadow-light: var(--el-box-shadow-light, 0px 0px 12px rgba(0, 0, 0, 0.12));
   cursor: pointer;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   transition: transform 0.2s ease-in-out, background-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
-  z-index: 1050; 
+  z-index: 1050;
 
   .fab-icon {
     width: $fab-icon-size;
     height: $fab-icon-size;
     .fab-icon-background {
-      // Main circle of SVG is now transparent, button bg shows through
       fill: transparent; 
     }
     .fab-icon-foreground {
@@ -202,36 +167,34 @@ $box-shadow-light: var(--el-box-shadow-light, 0px 0px 12px rgba(0, 0, 0, 0.12));
     box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
   }
 
-  &:active, &.is-active { 
+  &:active { 
     transform: scale(1);
-    // background-color: darken($primary-color, 10%); // Consider a darker shade if $primary-color is a SASS variable
   }
 }
 
 .ai-sidebar {
-  position: fixed;
-  top: 0;
-  right: 0;
   width: $sidebar-width;
-  height: 100vh;
+  height: 100%; 
   background-color: $background-color-base;
   border-left: 1px solid $border-color-base;
-  box-shadow: none; 
-  transform: translateX(100%);
-  visibility: hidden;
-  // Delay visibility hide to allow transform animation to complete
-  transition: transform 0.3s ease-in-out, visibility 0s 0.3s, box-shadow 0.3s ease-in-out; 
+  box-shadow: -2px 0 5px rgba(0,0,0,0.05); 
   display: flex;
   flex-direction: column;
-  z-index: 1000;
+  flex-shrink: 0; 
+  overflow: hidden;
+  // Note: Vue's <Transition> handles the direct animation.
+  // The transform property is now managed by the transition classes.
+}
 
-  &.is-open {
-    transform: translateX(0);
-    visibility: visible;
-    box-shadow: -2px 0 10px rgba(0, 0, 0, 0.1);
-    // Ensure visibility transition is immediate when opening
-    transition: transform 0.3s ease-in-out, visibility 0s 0s, box-shadow 0.3s ease-in-out; 
-  }
+// Transitions for the AI Panel slide
+.ai-panel-slide-enter-active,
+.ai-panel-slide-leave-active {
+  transition: transform 0.3s ease-in-out;
+}
+
+.ai-panel-slide-enter-from,
+.ai-panel-slide-leave-to {
+  transform: translateX(100%); // Slide from/to the right
 }
 
 .sidebar-header {
@@ -269,7 +232,6 @@ $box-shadow-light: var(--el-box-shadow-light, 0px 0px 12px rgba(0, 0, 0, 0.12));
 
       &:hover {
         color: $primary-color;
-        // background-color: rgba($primary-color, 0.1); // Use rgba if $primary-color is hex
       }
 
       svg {
@@ -289,8 +251,7 @@ $box-shadow-light: var(--el-box-shadow-light, 0px 0px 12px rgba(0, 0, 0, 0.12));
   border: 1px solid $border-color-light;
   border-radius: 4px;
   box-shadow: $box-shadow-light;
-  z-index: 1010; 
-  padding: 8px;
+  z-index: 10; 
 
   .popover-content {
      padding: 8px 12px; 
@@ -302,7 +263,7 @@ $box-shadow-light: var(--el-box-shadow-light, 0px 0px 12px rgba(0, 0, 0, 0.12));
 .sidebar-content {
   flex-grow: 1; 
   padding: 16px;
-  overflow-y: auto;
+  overflow-y: auto; 
   color: $text-color-secondary;
   display: flex;
   align-items: center; 
@@ -310,22 +271,6 @@ $box-shadow-light: var(--el-box-shadow-light, 0px 0px 12px rgba(0, 0, 0, 0.12));
 
   p {
     margin: 0;
-  }
-}
-
-.sidebar-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(0, 0, 0, 0.2); 
-  z-index: 999; 
-  transition: opacity 0.3s ease-in-out;
-  opacity: 1;
-
-  &.v-enter-from, &.v-leave-to { // For Vue transition classes if used with <Transition>
-    opacity: 0;
   }
 }
 </style>
