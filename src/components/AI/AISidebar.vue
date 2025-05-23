@@ -1,35 +1,8 @@
 <template>
-  <div> <!-- Root div, always rendered if AISidebar component is in parent DOM -->
-    <!-- AI Trigger Icon (Floating Action Button) - Always rendered -->
-    <button
-      class="ai-trigger-fab"
-      @click="$emit('toggle-request')"
-      aria-label="Toggle AI Assistant"
-    >
-      <!-- SVG content for FAB -->
-      <svg class="fab-icon" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" width="28" height="28">
-        <circle cx="50" cy="50" r="45" class="fab-icon-background"/>
-        <circle cx="50" cy="50" r="12" class="fab-icon-foreground"/>
-        <circle cx="50" cy="25" r="6" class="fab-icon-foreground"/>
-        <circle cx="75" cy="40" r="6" class="fab-icon-foreground"/>
-        <circle cx="75" cy="60" r="6" class="fab-icon-foreground"/>
-        <circle cx="50" cy="75" r="6" class="fab-icon-foreground"/>
-        <circle cx="25" cy="60" r="6" class="fab-icon-foreground"/>
-        <circle cx="25" cy="40" r="6" class="fab-icon-foreground"/>
-        <line x1="50" y1="50" x2="50" y2="25" class="fab-icon-lines"/>
-        <line x1="50" y1="50" x2="75" y2="40" class="fab-icon-lines"/>
-        <line x1="50" y1="50" x2="75" y2="60" class="fab-icon-lines"/>
-        <line x1="50" y1="50" x2="50" y2="75" class="fab-icon-lines"/>
-        <line x1="50" y1="50" x2="25" y2="60" class="fab-icon-lines"/>
-        <line x1="50" y1="50" x2="25" y2="40" class="fab-icon-lines"/>
-      </svg>
-    </button>
-
-    <!-- Collapsible Sidebar Panel - No longer conditional on props.showPanel -->
-    <Transition name="ai-panel-slide">
-      <aside class="ai-sidebar"> 
-        <header class="sidebar-header">
-          <h3 class="header-title">AI 助手</h3>
+  <Transition name="ai-panel-slide">
+    <aside class="ai-sidebar"> 
+      <header class="sidebar-header">
+        <h3 class="header-title">AI 助手</h3>
           <div class="header-actions">
             <ElTooltip content="聊天历史" placement="bottom" :hide-after="0">
               <ElButton 
@@ -59,9 +32,8 @@
       <div class="sidebar-content">
         <AIChatInterface />
       </div>
-      </aside>
-    </Transition>
-  </div>
+    </aside>
+  </Transition>
 </template>
 
 <script setup lang="ts">
@@ -126,50 +98,10 @@ $border-color-light: var(--border-color-light, #e4e7ed);
 $background-color-paper: var(--el-bg-color-overlay, #FFFFFF); 
 $box-shadow-light: var(--el-box-shadow-light, 0px 0px 12px rgba(0, 0, 0, 0.12));
 
-.ai-trigger-fab {
-  position: fixed; 
-  bottom: 30px;
-  right: 30px;
-  width: $fab-size;
-  height: $fab-size;
-  background-color: $primary-color;
-  border-radius: 50%;
-  border: none;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  transition: transform 0.2s ease-in-out, background-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
-  z-index: 1050;
-
-  .fab-icon {
-    width: $fab-icon-size;
-    height: $fab-icon-size;
-    .fab-icon-background {
-      fill: transparent; 
-    }
-    .fab-icon-foreground {
-      fill: white; 
-    }
-    .fab-icon-lines {
-      stroke: white; 
-      stroke-width: 4; 
-    }
-  }
-
-  &:hover {
-    transform: scale(1.1);
-    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
-  }
-
-  &:active { 
-    transform: scale(1);
-  }
-}
+// .ai-trigger-fab styles removed
 
 .ai-sidebar {
-  // width: $sidebar-width; // Removed, ElDrawer controls width
+  // width: $sidebar-width; // Removed
   height: 100%; 
   background-color: $background-color-base;
   // border-left: 1px solid $border-color-base; // Removed, ElDrawer has border

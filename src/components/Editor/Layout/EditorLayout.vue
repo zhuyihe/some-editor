@@ -17,11 +17,35 @@
       direction="rtl"
       size="380px" 
       :with-header="false" 
-      :destroy-on-close="false"
-      class="ai-sidebar-drawer" 
+      :destroy-on-close="false" 
+      class="ai-sidebar-drawer"
     >
       <AISidebar @toggle-request="handleAiPanelToggle" />
     </ElDrawer>
+
+    <!-- ADDED FAB HERE -->
+    <button
+      class="ai-trigger-fab-layout"
+      @click="handleAiPanelToggle"
+      aria-label="Toggle AI Assistant"
+    >
+      <svg class="fab-icon-layout" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" width="28" height="28">
+        <circle cx="50" cy="50" r="45" class="fab-icon-background-layout"/>
+        <circle cx="50" cy="50" r="12" class="fab-icon-foreground-layout"/>
+        <circle cx="50" cy="25" r="6" class="fab-icon-foreground-layout"/>
+        <circle cx="75" cy="40" r="6" class="fab-icon-foreground-layout"/>
+        <circle cx="75" cy="60" r="6" class="fab-icon-foreground-layout"/>
+        <circle cx="50" cy="75" r="6" class="fab-icon-foreground-layout"/>
+        <circle cx="25" cy="60" r="6" class="fab-icon-foreground-layout"/>
+        <circle cx="25" cy="40" r="6" class="fab-icon-foreground-layout"/>
+        <line x1="50" y1="50" x2="50" y2="25" class="fab-icon-lines-layout"/>
+        <line x1="50" y1="50" x2="75" y2="40" class="fab-icon-lines-layout"/>
+        <line x1="50" y1="50" x2="75" y2="60" class="fab-icon-lines-layout"/>
+        <line x1="50" y1="50" x2="50" y2="75" class="fab-icon-lines-layout"/>
+        <line x1="50" y1="50" x2="25" y2="60" class="fab-icon-lines-layout"/>
+        <line x1="50" y1="50" x2="25" y2="40" class="fab-icon-lines-layout"/>
+      </svg>
+    </button>
   </div>
 </template>
 
@@ -107,5 +131,54 @@ export default defineComponent({
 
 .editor-footer {
   flex-shrink: 0;
+}
+
+// FAB Styles (as provided in prompt for EditorLayout.vue)
+$fab-size-layout: 56px;
+$fab-icon-size-layout: 28px;
+$primary-color-layout: var(--el-color-primary, #3478F6); // Use Element Plus primary color
+
+.ai-trigger-fab-layout {
+  position: fixed;
+  bottom: 30px;
+  right: 30px;
+  width: $fab-size-layout;
+  height: $fab-size-layout;
+  background-color: $primary-color-layout;
+  border-radius: 50%;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: var(--el-box-shadow, 0px 12px 32px 4px rgba(0, 0, 0, .04), 0px 8px 20px rgba(0, 0, 0, .08));
+  transition: transform 0.2s ease-in-out, background-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+  z-index: 2050; // Ensure it's above ElDrawer's default z-index if needed (ElDrawer default is 2000)
+
+  .fab-icon-layout {
+    width: $fab-icon-size-layout;
+    height: $fab-icon-size-layout;
+    .fab-icon-background-layout {
+      fill: transparent; 
+    }
+    .fab-icon-foreground-layout {
+      fill: white; 
+    }
+    .fab-icon-lines-layout {
+      stroke: white; 
+      stroke-width: 4; 
+    }
+  }
+
+  &:hover {
+    transform: scale(1.1);
+    box-shadow: var(--el-box-shadow-dark, 0px 16px 48px 16px rgba(0, 0, 0, .08), 0px 12px 32px rgba(0, 0, 0, .12), 0px 8px 16px -8px rgba(0, 0, 0, .16));
+  }
+
+  &:active { 
+    transform: scale(1);
+    // Slightly darken background on active, if $primary-color-layout is a SASS variable
+    // background-color: darken($primary-color-layout, 5%); 
+  }
 }
 </style>
