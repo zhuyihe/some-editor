@@ -58,7 +58,7 @@
         </div>
       </header>
       <div class="sidebar-content">
-        <p>AI 聊天界面加载中...</p>
+        <AIChatInterface />
       </div>
       </aside>
     </Transition>
@@ -67,6 +67,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, defineProps } from 'vue'; // Added defineProps
+import AIChatInterface from './Chat/AIChatInterface.vue'; // Import AIChatInterface
 
 // Define props
 const props = defineProps({
@@ -261,16 +262,20 @@ $box-shadow-light: var(--el-box-shadow-light, 0px 0px 12px rgba(0, 0, 0, 0.12));
 }
 
 .sidebar-content {
-  flex-grow: 1; 
-  padding: 16px;
-  overflow-y: auto; 
-  color: $text-color-secondary;
-  display: flex;
-  align-items: center; 
-  justify-content: center; 
+  flex-grow: 1;
+  // padding: 16px; // Remove padding if AIChatInterface handles it
+  padding: 0; // Let AIChatInterface manage its own padding
+  overflow-y: hidden; // AIChatInterface's list will scroll
+  display: flex; // To make AIChatInterface take full height if it's also flex
+  flex-direction: column; // To make AIChatInterface take full height if it's also flex
 
-  p {
-    margin: 0;
-  }
+  // Remove align-items and justify-content if AIChatInterface is full bleed
+  // align-items: center;
+  // justify-content: center;
+
+  // p tag is no longer a direct child, so this style is not needed here.
+  // p {
+  //   margin: 0;
+  // }
 }
 </style>
