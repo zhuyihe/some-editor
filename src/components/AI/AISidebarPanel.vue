@@ -1,5 +1,4 @@
 <template>
-<template>
   <ElContainer direction="vertical" class="ai-sidebar-panel-v21">
     <!-- Region B (v2.1): Top Header & Control Area -->
     <ElHeader class="region-b-header-v21">
