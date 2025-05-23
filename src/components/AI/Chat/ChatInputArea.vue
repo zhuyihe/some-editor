@@ -1,5 +1,5 @@
 <template>
-  <div class="chat-input-area-v15-layout"> <!-- Renamed root class -->
+  <div class="chat-input-area-v21"> <!-- Updated root class -->
     <AIModeSwitcher 
       class="mode-switcher-component"
       v-model="modeForSwitcher" 
@@ -23,7 +23,7 @@
           @selectSuggestion="handleSelectSuggestion"
         />
       </ElPopover>
-      <div class="textarea-send-button-wrapper"> <!-- New wrapper -->
+      <div class="textarea-send-button-wrapper-v21"> <!-- Updated wrapper class -->
         <ElInput
           ref="textareaEl" 
           type="textarea"
@@ -37,15 +37,15 @@
           @keydown.escape.prevent="onEscapePress"
           :disabled="props.isLoading"
           resize="none"
-          class="chat-textarea-v15" 
+          class="chat-textarea-v21"  
         />
         <ElButton
-          type="primary"
+          type="primary" 
           shape="circle" 
           :icon="SendIcon" 
           @click="handleSend" 
           :disabled="!currentInputText.trim() || props.isLoading"
-          class="send-button-v15" 
+          class="send-button-v21" 
         />
       </div>
     </div>
@@ -214,66 +214,64 @@ const handleSelectSuggestion = (suggestion: CommandSuggestion) => {
 </script>
 
 <style scoped lang="scss">
-.chat-input-area-v15-layout { // Renamed root class
-  // padding: 10px; // Padding will be handled by Region D container (AISidebarPanel)
+.chat-input-area-v21 { // Updated root class
+  padding: 0; // Parent (Region E) will handle padding
   border-top: none; 
-  background-color: #FFFFFF; // Match Region D background
+  background-color: #FFFFFF; 
   display: flex;
   flex-direction: column;
   gap: 8px; 
 }
 
 .input-control-wrapper {
-  position: relative; // For slash popover
+  position: relative; 
 }
 
-.textarea-send-button-wrapper { // New wrapper
+.textarea-send-button-wrapper-v21 { // Updated wrapper class
   position: relative; 
-  display: flex; 
+  display: flex;
   align-items: flex-end; 
   gap: 8px; 
 }
 
-.chat-textarea-v15.el-textarea { // Target ElInput with new class
+.chat-textarea-v21.el-textarea { // Updated class name
   :deep(.el-textarea__inner) {
     border-radius: 8px !important; 
-    border-color: #E0E6ED !important; 
+    border: none !important; // Remove all default borders
+    box-shadow: none !important; // Remove default shadow
     padding: 10px 12px !important; 
     line-height: 1.5; 
+    background-color: var(--el-fill-color-light, #F5F7FA); // Light background
+    
+    // Persistent bottom border
+    border-bottom: 1px solid var(--el-border-color-lighter, #EBEEF5) !important;
+
+    &:focus {
+      border-bottom-color: var(--el-color-primary, #346EF2) !important; // Bottom line changes color on focus
+    }
   }
   flex-grow: 1;
 }
 
-.send-button-v15.el-button { // New class for send button
-  width: 36px;  // Diameter for circle button (adjust based on icon size and padding)
-  height: 36px; // Diameter for circle button
-  // padding: 0; // Reset padding for circle buttons if using fixed W/H
-  font-size: 18px; // Adjust icon size as needed
-  // Ensure icon is white if primary button text isn't automatically white
-  .el-icon { 
-    color: white;
+.send-button-v21.el-button.is-circle { // Updated class name
+  width: 56px !important;  
+  height: 56px !important; 
+  font-size: 24px; 
+  box-shadow: var(--el-box-shadow-light, 0px 0px 12px rgba(0,0,0,0.12)); 
+
+  .el-icon {
+    color: white; 
   }
-  // If theme's primary is not #2B79D0, uncomment and set custom background:
-  // background-color: #2B79D0;
-  // border-color: #2B79D0;
-  // &:hover, &:focus, &:active {
-  //   background-color: lighten(#2B79D0, 10%);
-  //   border-color: lighten(#2B79D0, 10%);
-  // }
 }
       
 .mode-switcher-component { 
   margin-bottom: 8px; 
 }
 
-// Positioning for ElPopover is handled by its props.
-// .slash-suggest-component { ... } 
-
 .parameter-hint { 
   font-size: 0.8em;
   color: var(--el-text-color-secondary);
   padding: 4px 8px;
-  // margin-top: 4px; // Removed, gap on parent handles spacing
   background-color: var(--el-fill-color-lighter);
   border-radius: var(--el-border-radius-base);
   text-align: left; 
