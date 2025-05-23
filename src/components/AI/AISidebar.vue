@@ -26,9 +26,10 @@
     </button>
 
     <!-- Collapsible Sidebar Panel - Conditionally rendered based on showPanel prop -->
-    <aside class="ai-sidebar" v-if="props.showPanel">
-      <header class="sidebar-header">
-        <h3 class="header-title">AI 助手</h3>
+    <Transition name="ai-panel-slide">
+      <aside class="ai-sidebar" v-if="props.showPanel">
+        <header class="sidebar-header">
+          <h3 class="header-title">AI 助手</h3>
         <div class="header-actions">
           <button
             class="action-button history-button"
@@ -59,7 +60,8 @@
       <div class="sidebar-content">
         <p>AI 聊天界面加载中...</p>
       </div>
-    </aside>
+      </aside>
+    </Transition>
   </div>
 </template>
 
@@ -180,9 +182,19 @@ $box-shadow-light: var(--el-box-shadow-light, 0px 0px 12px rgba(0, 0, 0, 0.12));
   flex-direction: column;
   flex-shrink: 0; 
   overflow: hidden;
-  // Add transition for smooth show/hide if parent uses CSS to toggle width/opacity
-  // instead of v-if. Since we use v-if here, Vue's <Transition> component would be
-  // the preferred way to animate this element if desired.
+  // Note: Vue's <Transition> handles the direct animation.
+  // The transform property is now managed by the transition classes.
+}
+
+// Transitions for the AI Panel slide
+.ai-panel-slide-enter-active,
+.ai-panel-slide-leave-active {
+  transition: transform 0.3s ease-in-out;
+}
+
+.ai-panel-slide-enter-from,
+.ai-panel-slide-leave-to {
+  transform: translateX(100%); // Slide from/to the right
 }
 
 .sidebar-header {

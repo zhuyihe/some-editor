@@ -84,7 +84,7 @@ export default defineComponent({
   flex-grow: 1; 
   display: flex; 
   justify-content: center; 
-  padding: 12px; 
+  // padding: 12px; // Removed
   overflow: auto; 
   position: relative; 
   transition: width 0.3s ease-in-out; 
