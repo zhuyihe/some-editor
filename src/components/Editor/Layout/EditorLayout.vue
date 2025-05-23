@@ -8,46 +8,37 @@
       <div class="main-editor-content-wrapper">
         <slot></slot> 
       </div>
-      <AISidebar 
-        @toggle-request="handleAiPanelToggle" 
-        :show-panel="isAiPanelVisible" 
-        class="integrated-ai-sidebar"
-      />
+      <AISidebarPanel /> <!-- ADDED HERE -->
     </div>
     <editor-footer />
+    <!-- REMOVE ElDrawer -->
+    <!-- REMOVE FAB button class="ai-trigger-fab-layout" -->
   </div>
 </template>
 
 <script lang="ts">
-import { defineComponent, ref } from 'vue';
+// Target script section in EditorLayout.vue
+import { defineComponent /* remove ref */ } from 'vue';
 import EditorHeader from './EditorHeader.vue';
 import EditorFooter from './EditorFooter.vue';
-import AISidebar from '../../AI/AISidebar.vue'; 
+// import AISidebar from '../../AI/AISidebar.vue'; // REMOVE
+// import { ElDrawer } from 'element-plus'; // REMOVE
+import AISidebarPanel from '../../AI/AISidebarPanel.vue'; // ADD
 
 export default defineComponent({
   name: 'EditorLayout',
   components: {
     EditorHeader,
     EditorFooter,
-    AISidebar, 
+    // AISidebar, // REMOVE
+    AISidebarPanel, // ADD
   },
   emits: ['save-content'],
   setup(_, { emit }) {
-    const isAiPanelVisible = ref(false); 
-
-    const handleSaveContent = () => {
-      emit('save-content');
-    };
-
-    const handleAiPanelToggle = () => {
-      isAiPanelVisible.value = !isAiPanelVisible.value;
-    };
-    
-    return {
-      handleSaveContent,
-      isAiPanelVisible,
-      handleAiPanelToggle,
-    };
+    // const isAiPanelVisible = ref(false); // REMOVE
+    const handleSaveContent = () => { emit('save-content'); };
+    // const handleAiPanelToggle = () => { isAiPanelVisible.value = !isAiPanelVisible.value; }; // REMOVE
+    return { handleSaveContent };
   }
 });
 </script>
@@ -81,25 +72,21 @@ export default defineComponent({
 }
 
 .main-editor-content-wrapper {
-  flex-grow: 1; 
+  flex-grow: 1; // This will now share space with AISidebarPanel
   display: flex; 
   justify-content: center; 
-  // padding: 12px; // Removed
   overflow: auto; 
-  position: relative; 
-  transition: width 0.3s ease-in-out; 
+  position: relative;
+  // Add transition for width changes if sidebar is resizable/collapsible later
+  transition: width 0.2s ease-out; // For future resizability animation
 }
+// AISidebarPanel will have its own width and flex-shrink:0 from its internal styles
 
-.integrated-ai-sidebar {
-  // AISidebar.vue itself will be a block, its <aside> panel is conditional.
-  // This class is here if any specific transition or sizing overrides were needed from parent.
-  // However, AISidebar's internal styling with flex-shrink:0 and fixed width should be sufficient.
-  // We can add a transition here to smoothly animate the space AISidebar *might* take
-  // if its root element's width changed, rather than just the <aside> appearing/disappearing.
-  // For now, this is mostly a placeholder as AISidebar's root is always there.
-}
+// Removed :deep(.ai-sidebar-drawer .el-drawer__body) styles
 
 .editor-footer {
   flex-shrink: 0;
 }
+
+// Removed SCSS rules for .ai-trigger-fab-layout and its children
 </style>

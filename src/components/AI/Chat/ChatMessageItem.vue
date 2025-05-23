@@ -1,5 +1,10 @@
 <template>
-  <div class="chat-message-item" :class="['message-' + message.sender]">
+  <div class="chat-message-item" :class="['message-' + message.sender, 'message-type-' + message.type]">
+    <ElAvatar 
+      :icon="message.sender === 'user' ? UserIcon : RobotIcon" 
+      :size="32" 
+      class="message-avatar"
+    />
     <div class="message-bubble">
       <span class="sender-name">{{ message.sender === 'user' ? 'You' : 'AI' }}</span>
       <div class="message-content">
@@ -8,9 +13,14 @@
         <div v-else-if="message.type === 'codeBlock'" class="code-block-wrapper">
           <div class="code-header">
             <span class="language">{{ message.content.language || 'code' }}</span>
-            <button @click="copyCode(message.content.code)" class="copy-code-button" aria-label="Copy code">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"></path></svg> 复制
-            </button>
+            <ElButton 
+              type="primary" 
+              link 
+              size="small" 
+              :icon="CopyDocumentIcon" 
+              @click="copyCode(message.content.code)"
+              class="copy-code-el-button"
+            >复制</ElButton>
           </div>
           <pre><code :class="message.content.language ? 'language-' + message.content.language : ''">{{ message.content.code }}</code></pre>
           <span v-if="copiedFeedback" class="copied-feedback">已复制!</span>
@@ -23,23 +33,22 @@
 
 <script setup lang="ts">
 import { ref, defineProps } from 'vue';
+import { ElAvatar, ElButton } from 'element-plus';
+import { User as UserIcon, Cpu as RobotIcon, CopyDocument as CopyDocumentIcon } from '@element-plus/icons-vue';
 
 interface Message {
   id: string;
   sender: 'user' | 'ai';
   type: 'text' | 'formatted' | 'codeBlock';
-  content: any; // string for text/formatted, { code: string, language?: string } for codeBlock
+  content: any; 
   timestamp: Date | string;
 }
-// interface CodeBlockContent { code: string; language?: string; } // Not explicitly used as a separate type here
 
 const props = defineProps<{ message: Message }>();
-
-const copiedFeedback = ref(false); // Feedback per item
+const copiedFeedback = ref(false);
 
 const copyCode = async (codeToCopy: string) => {
   if (!navigator.clipboard) {
-    // Fallback for older browsers or non-secure contexts if needed
     console.warn('Clipboard API not available');
     return;
   }
@@ -57,62 +66,72 @@ const copyCode = async (codeToCopy: string) => {
 
 <style scoped lang="scss">
 .chat-message-item {
-  margin-bottom: 10px;
+  margin-bottom: 15px; // Increased margin
   display: flex;
-  
+  gap: 8px; // Space between avatar and bubble
+
   &.message-user {
-    justify-content: flex-end;
+    flex-direction: row-reverse; // Avatar on right, bubble on left
     .message-bubble {
-      background-color: var(--el-color-primary-light-7, #dcf8c6);
-      border-radius: 12px 12px 0 12px;
+      background-color: var(--el-color-primary-light-9, #e1eaff); // Lighter EP blue
+      border-radius: 12px 0px 12px 12px; // Adjusted for user
+      color: var(--el-color-primary-dark-2, #3375b9); // Darker text for primary bg
     }
+    // Sender name and timestamp color for user messages might need to be adjusted
+    // if the default doesn't contrast well with the primary-light-9 background.
+    // For now, assume default text color is fine, or it's handled by global EP styles.
   }
 
   &.message-ai {
-    justify-content: flex-start;
+    flex-direction: row; // Avatar on left, bubble on right
     .message-bubble {
-      background-color: var(--el-fill-color-light, #f1f0f0);
-      border-radius: 12px 12px 12px 0;
+      background-color: var(--el-fill-color-light, #f0f2f5); // Default EP light fill
+      border-radius: 0px 12px 12px 12px; // Adjusted for AI
     }
+  }
+}
+
+.message-avatar {
+  flex-shrink: 0;
+  &.el-avatar--icon { // Specific styling for default icon avatars
+    background-color: var(--el-color-info-light-3, #c8c9cc); 
+    color: var(--el-color-white);
   }
 }
 
 .message-bubble {
   padding: 10px 14px;
-  max-width: 75%;
+  max-width: calc(100% - 32px - 8px); // Full width minus avatar and gap
   display: inline-block; 
-  color: var(--el-text-color-primary, #303133);
-  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-  position: relative; // For copied-feedback positioning
+  box-shadow: var(--el-box-shadow-lighter, 0px 0px 12px rgba(0,0,0,0.06));
+  position: relative; 
 }
 
 .sender-name {
   font-weight: bold;
   font-size: 0.8em; 
-  margin-bottom: 2px;
+  margin-bottom: 4px; // Slightly more space
   display: block;
+  color: var(--el-text-color-regular); // Ensure sender name is consistently colored
 }
 
 .message-content {
-  p { // For message.type === 'text'
+  p { 
     margin: 0;
     white-space: pre-wrap;
     line-height: 1.5;
   }
-  // For v-html content (message.type === 'formatted')
-  // Using :deep() for scoped style penetration
   :deep(div[v-html]) { 
     line-height: 1.5;
-    white-space: normal; // Let HTML control its whitespace
+    white-space: normal; 
     ul, ol {
       padding-left: 20px;
-      margin-top: 5px;
-      margin-bottom: 5px;
+      margin: 5px 0;
     }
-    strong { font-weight: bold; }
+    strong { font-weight: var(--el-font-weight-primary); }
     em { font-style: italic; }
     a { 
-      color: var(--el-color-primary, #409eff);
+      color: var(--el-color-primary);
       text-decoration: none;
       &:hover {
         text-decoration: underline;
@@ -123,9 +142,9 @@ const copyCode = async (codeToCopy: string) => {
 
 .code-block-wrapper {
   margin-top: 8px;
-  background-color: var(--el-fill-color-darker, #2c2f33); // Darker background for code
-  color: var(--el-color-white, #fff); // Light text on dark background
-  border-radius: 6px;
+  background-color: var(--el-fill-color-darker, #141414); // Darker for code
+  color: #e0e0e0; // Light text on dark background
+  border-radius: var(--el-border-radius-base, 4px);
   overflow: hidden; 
 }
 
@@ -133,80 +152,71 @@ const copyCode = async (codeToCopy: string) => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 6px 10px;
-  background-color: rgba(0,0,0,0.2); 
+  padding: 6px 12px;
+  background-color: var(--el-bg-color-page, #2a2a2a); // Slightly lighter than code block bg
   font-size: 0.8em;
 }
 
 .language {
-  color: var(--el-text-color-secondary-darkbg, #A3A6AD); 
+  color: var(--el-text-color-disabled, #848486); // Muted color for language hint
+  font-family: var(--el-font-family-mono);
 }
 
-.copy-code-button {
-  background: var(--el-color-info-light-7, #58585b);
-  color: var(--el-color-white, #fff);
-  border: none;
-  padding: 4px 8px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 0.9em;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  &:hover {
-    background: var(--el-color-info-light-5, #79797c);
-  }
-  svg { 
-    width: 14px;
-    height: 14px;
-    fill: currentColor;
-  }
+.copy-code-el-button {
+  // ElButton with type="primary" link has its own color, adjust if needed
+  // Example: color: var(--el-color-info-light-5, #a6a9ad); 
+  // &:hover { color: var(--el-color-info-light-3, #c8c9cc); }
+  // For now, rely on ElButton's default link styling.
+  font-size: 12px; // Make icon/text slightly smaller
 }
 
 .copied-feedback {
   position: absolute; 
-  bottom: 5px;
-  right: 5px;
-  background-color: rgba(0,0,0,0.7);
-  color: white;
-  padding: 2px 5px;
-  font-size: 0.7em;
-  border-radius: 3px;
+  bottom: 8px; // Adjusted to be more inside
+  right: 8px;  // Adjusted
+  background-color: var(--el-overlay-color-lighter, rgba(0,0,0,0.7));
+  color: var(--el-color-white);
+  padding: 3px 6px;
+  font-size: 0.75em;
+  border-radius: var(--el-border-radius-small);
 }
 
 pre {
   margin: 0;
-  padding: 10px;
+  padding: 12px; // Increased padding
   overflow-x: auto; 
-  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
-  font-size: 0.85em;
+  font-family: var(--el-font-family-mono, "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace);
+  font-size: 0.875em; // Slightly larger for readability
   line-height: 1.6;
-  background-color: transparent; 
+  background-color: transparent !important; // Ensure no other bg interferes
   color: inherit; 
   white-space: pre; 
 }
 
-code { 
-  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
-  background-color: var(--el-fill-color, #eee); 
+// Reset for inline code if needed, though less common in chat directly
+code:not(pre > code) { 
+  font-family: var(--el-font-family-mono);
+  background-color: var(--el-fill-color-light); 
   padding: 0.1em 0.3em;
-  border-radius: 3px;
+  border-radius: var(--el-border-radius-small);
   font-size: 0.9em; 
   color: var(--el-text-color-primary); 
 }
+// Ensure pre > code inherits correctly
 pre code { 
    background-color: transparent;
    padding: 0;
    border-radius: 0;
-   font-size: 1em; 
+   font-size: 1em; // Inherit pre's font size
    color: inherit;
+   font-family: inherit; // Inherit pre's font family
 }
 
 .timestamp {
   font-size: 0.75em;
-  color: var(--el-text-color-secondary, #909399);
+  color: var(--el-text-color-placeholder, #A8ABB2); // Use placeholder color
   display: block;
   text-align: right; 
-  margin-top: 6px;
+  margin-top: 8px; // Increased margin
 }
 </style>
